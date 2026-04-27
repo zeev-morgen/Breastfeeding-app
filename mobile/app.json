@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "LactaSync",
+    "slug": "lactasync",
+    "scheme": "lactasync",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#FCE7F3"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.lactasync.app"
+    },
+    "android": {
+      "package": "com.lactasync.app"
+    },
+    "plugins": ["expo-router"],
+    "extra": {
+      "apiBaseUrl": "http://localhost:4000"
+    }
+  }
+}
