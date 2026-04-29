@@ -4,6 +4,12 @@ import { HttpError } from '../lib/errors';
 import { logger } from '../lib/logger';
 
 export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+  // Express JSON body-parser throws SyntaxError on malformed input
+  if (err instanceof SyntaxError && 'body' in err) {
+    res.status(400).json({ error: 'BAD_JSON', message: 'Invalid JSON in request body' });
+    return;
+  }
+
   if (err instanceof ZodError) {
     res.status(400).json({
       error: 'VALIDATION_ERROR',
