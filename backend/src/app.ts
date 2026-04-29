@@ -1,3 +1,6 @@
+// Patch Express 4 so async route handlers' rejections reach the error middleware
+// instead of crashing the process via Node's unhandled-rejection exit.
+import 'express-async-errors';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
