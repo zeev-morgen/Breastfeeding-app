@@ -8,6 +8,7 @@ interface AuthState {
   hydrated: boolean;
   hydrate: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  register: (input: { email: string; password: string; displayName?: string; phoneE164?: string }) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -33,6 +34,12 @@ export const useAuth = create<AuthState>((set) => ({
 
   login: async (email, password) => {
     const { token, user } = await api.login(email, password);
+    await setToken(token);
+    set({ user, token });
+  },
+
+  register: async (input) => {
+    const { token, user } = await api.register(input);
     await setToken(token);
     set({ user, token });
   },

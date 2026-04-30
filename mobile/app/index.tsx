@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { Link } from 'expo-router';
 import { api } from '@/lib/api';
 import type { FeedingLog, Guidance, Side } from '@/lib/types';
 import { SideButton } from '@/components/SideButton';
@@ -85,9 +86,16 @@ export default function QuickLogScreen() {
       >
         <View className="mb-2 flex-row items-center justify-between">
           <Text className="text-2xl font-bold text-brand-700">היי {user?.displayName ?? 'אמא'} 👋</Text>
-          <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="יציאה">
-            <Text className="text-sm font-semibold text-brand-600">יציאה</Text>
-          </Pressable>
+          <View className="flex-row gap-4">
+            <Link href="/history" asChild>
+              <Pressable accessibilityRole="button" accessibilityLabel="היסטוריה">
+                <Text className="text-sm font-semibold text-brand-600">היסטוריה</Text>
+              </Pressable>
+            </Link>
+            <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="יציאה">
+              <Text className="text-sm font-semibold text-brand-600">יציאה</Text>
+            </Pressable>
+          </View>
         </View>
 
         <View className="gap-4">

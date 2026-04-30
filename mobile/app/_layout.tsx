@@ -15,7 +15,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!hydrated) return;
-    const onAuthScreen = segments[0] === 'login';
+    const onAuthScreen = segments[0] === 'login' || segments[0] === 'register';
     if (!token && !onAuthScreen) router.replace('/login');
     else if (token && onAuthScreen) router.replace('/');
   }, [hydrated, token, segments, router]);

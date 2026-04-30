@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Link } from 'expo-router';
 import { useAuth } from '@/lib/store';
 
 export default function LoginScreen() {
@@ -55,6 +56,12 @@ export default function LoginScreen() {
               <Text className="text-base font-bold text-white">התחברות</Text>
             )}
           </Pressable>
+
+          <Link href="/register" asChild>
+            <Pressable className="items-center py-2">
+              <Text className="text-sm text-brand-700">אין לי חשבון — להרשמה</Text>
+            </Pressable>
+          </Link>
         </View>
       </View>
     </SafeAreaView>
