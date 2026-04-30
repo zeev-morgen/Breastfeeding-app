@@ -9,11 +9,11 @@ export interface Guidance {
 }
 
 const TIPS_LOW_QUALITY: readonly string[] = [
-  'Try a deep latch: aim baby\'s nose toward the nipple so they tilt their head back and take a wide mouthful.',
-  'Switch nursing position (cross-cradle, football, or laid-back) — a different angle often improves transfer.',
-  'Compress the breast gently while feeding to keep milk flowing and baby actively swallowing.',
-  'Check baby\'s tongue movement — a shallow latch causes pinching pain and poor transfer; unlatch and re-latch.',
-  'Skin-to-skin for a few minutes before the next session to calm a fussy baby and trigger let-down.',
+  'נסי אחיזה עמוקה: כווני את האף של התינוק כלפי הפטמה כך שהוא יטה את הראש לאחור ויקח לפה אחיזה רחבה.',
+  'החליפי תנוחת הנקה (צלב, כדורגל, או שכיבה לאחור) — זווית אחרת לרוב משפרת את העברת החלב.',
+  'לחצי בעדינות על השד בזמן ההנקה כדי לשמור על זרימת החלב ולעודד בליעה פעילה של התינוק.',
+  'שימי לב לתנועת הלשון של התינוק — אחיזה רדודה גורמת לכאב ולהעברה חלשה. נתקי וצמידי מחדש.',
+  'מגע עור-לעור לכמה דקות לפני ההנקה הבאה מרגיע תינוק חסר מנוחה ומעורר את רפלקס שחרור החלב.',
 ];
 
 function hashStringToInt(s: string): number {

@@ -13,16 +13,6 @@ import { useAuth } from '@/lib/store';
 
 const SIDES: Side[] = ['LEFT', 'RIGHT', 'BOTH'];
 
-/**
- * Quick Log dashboard.
- *
- * Layout intent (one-handed thumb-zone use):
- *  - Status card up top (read-only at a glance)
- *  - Tip directly below if relevant
- *  - Inputs stacked from middle to bottom: side → duration → quality → submit
- *  - Submit is a tall pill at the very bottom — reachable with the thumb without
- *    repositioning the phone, even on large devices.
- */
 export default function QuickLogScreen() {
   const { signOut, user } = useAuth();
 
@@ -41,10 +31,9 @@ export default function QuickLogScreen() {
       const { log, guidance: g } = await api.getLatest();
       setLatest(log);
       setGuidance(g);
-      // Pre-select the suggested side so the most common path is one tap.
       if (!side) setSide(g.nextSide);
     } catch (err) {
-      Alert.alert('Could not load', err instanceof Error ? err.message : 'Unknown error');
+      Alert.alert('טעינה נכשלה', err instanceof Error ? err.message : 'שגיאה לא ידועה');
     } finally {
       setLoading(false);
     }
@@ -74,7 +63,7 @@ export default function QuickLogScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Could not save', err instanceof Error ? err.message : 'Unknown error');
+      Alert.alert('שמירה נכשלה', err instanceof Error ? err.message : 'שגיאה לא ידועה');
     } finally {
       setSubmitting(false);
     }
@@ -95,9 +84,9 @@ export default function QuickLogScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#DB2777" />}
       >
         <View className="mb-2 flex-row items-center justify-between">
-          <Text className="text-2xl font-bold text-brand-700">Hi {user?.displayName ?? 'there'} 👋</Text>
-          <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="Sign out">
-            <Text className="text-sm font-semibold text-brand-600">Sign out</Text>
+          <Text className="text-2xl font-bold text-brand-700">היי {user?.displayName ?? 'אמא'} 👋</Text>
+          <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="יציאה">
+            <Text className="text-sm font-semibold text-brand-600">יציאה</Text>
           </Pressable>
         </View>
 
@@ -106,7 +95,7 @@ export default function QuickLogScreen() {
           <GuidanceTip tip={guidance.tip} />
 
           <View className="rounded-3xl bg-white p-5">
-            <Text className="text-xs font-semibold uppercase tracking-wide text-brand-600">Side</Text>
+            <Text className="text-xs font-semibold uppercase tracking-wide text-brand-600">צד</Text>
             <View className="mt-2 flex-row gap-3">
               {SIDES.map((s) => (
                 <SideButton
@@ -119,12 +108,12 @@ export default function QuickLogScreen() {
               ))}
             </View>
 
-            <Text className="mt-5 text-xs font-semibold uppercase tracking-wide text-brand-600">Duration</Text>
+            <Text className="mt-5 text-xs font-semibold uppercase tracking-wide text-brand-600">משך</Text>
             <View className="mt-2">
               <DurationStepper value={durationMin} onChange={setDurationMin} />
             </View>
 
-            <Text className="mt-5 text-xs font-semibold uppercase tracking-wide text-brand-600">Quality</Text>
+            <Text className="mt-5 text-xs font-semibold uppercase tracking-wide text-brand-600">איכות</Text>
             <View className="mt-2">
               <QualityRating value={qualityScore} onChange={setQualityScore} />
             </View>
@@ -135,7 +124,7 @@ export default function QuickLogScreen() {
       <View className="px-4 pb-6">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Save feeding session"
+          accessibilityLabel="שמירת הנקה"
           onPress={onSubmit}
           disabled={submitting || !side}
           className={`items-center justify-center rounded-3xl py-5 ${
@@ -145,7 +134,7 @@ export default function QuickLogScreen() {
           {submitting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text className="text-lg font-bold text-white">Save session</Text>
+            <Text className="text-lg font-bold text-white">שמירת ההנקה</Text>
           )}
         </Pressable>
       </View>

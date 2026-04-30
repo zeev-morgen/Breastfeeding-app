@@ -15,7 +15,7 @@ export function QualityRating({ value, onChange }: Props) {
           <Pressable
             key={n}
             accessibilityRole="button"
-            accessibilityLabel={`Quality ${n} of 5`}
+            accessibilityLabel={`איכות ${n} מתוך 5`}
             onPress={() => {
               Haptics.selectionAsync();
               onChange(n);

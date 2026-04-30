@@ -11,7 +11,7 @@
       "backgroundColor": "#FCE7F3"
     },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.lactasync.app"
     },
     "android": {
@@ -19,7 +19,7 @@
     },
     "plugins": ["expo-router"],
     "extra": {
-      "apiBaseUrl": "http://172.20.10.2:4000"
+      "apiBaseUrl": "http://172.20.10.2:5000"
     }
   }
 }

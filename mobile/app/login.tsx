@@ -15,7 +15,7 @@ export default function LoginScreen() {
     try {
       await login(email.trim().toLowerCase(), password);
     } catch (err) {
-      Alert.alert('Login failed', err instanceof Error ? err.message : 'Unknown error');
+      Alert.alert('ההתחברות נכשלה', err instanceof Error ? err.message : 'שגיאה לא ידועה');
     } finally {
       setLoading(false);
     }
@@ -25,11 +25,11 @@ export default function LoginScreen() {
     <SafeAreaView className="flex-1 bg-brand-50" edges={['top', 'bottom']}>
       <View className="flex-1 justify-center px-6">
         <Text className="text-4xl font-bold text-brand-700">LactaSync</Text>
-        <Text className="mt-2 text-base text-gray-600">Sign in to track your sessions.</Text>
+        <Text className="mt-2 text-base text-gray-600">התחברי כדי לעקוב אחר ההנקות שלך.</Text>
 
         <View className="mt-10 gap-4">
           <TextInput
-            placeholder="Email"
+            placeholder="דוא״ל"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -38,7 +38,7 @@ export default function LoginScreen() {
             className="rounded-2xl bg-white px-5 py-4 text-base"
           />
           <TextInput
-            placeholder="Password"
+            placeholder="סיסמה"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -52,7 +52,7 @@ export default function LoginScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text className="text-base font-bold text-white">Sign in</Text>
+              <Text className="text-base font-bold text-white">התחברות</Text>
             )}
           </Pressable>
         </View>

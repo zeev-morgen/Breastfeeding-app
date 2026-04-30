@@ -18,7 +18,7 @@ export function DurationStepper({ value, onChange, step = 5, min = 0, max = 90 }
     <View className="flex-row items-center justify-between rounded-3xl bg-brand-100 p-3">
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Decrease duration"
+        accessibilityLabel="הפחתת משך"
         onPress={() => set(value - step)}
         className="h-14 w-14 items-center justify-center rounded-full bg-white"
       >
@@ -26,11 +26,11 @@ export function DurationStepper({ value, onChange, step = 5, min = 0, max = 90 }
       </Pressable>
       <View className="items-center">
         <Text className="text-4xl font-bold text-brand-700">{value}</Text>
-        <Text className="text-xs uppercase tracking-wide text-brand-700">minutes</Text>
+        <Text className="text-xs tracking-wide text-brand-700">דקות</Text>
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Increase duration"
+        accessibilityLabel="הוספת משך"
         onPress={() => set(value + step)}
         className="h-14 w-14 items-center justify-center rounded-full bg-white"
       >

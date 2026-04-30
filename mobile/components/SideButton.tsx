@@ -9,13 +9,13 @@ interface Props {
   onPress: (side: Side) => void;
 }
 
-const LABEL: Record<Side, string> = { LEFT: 'L', RIGHT: 'R', BOTH: 'Both' };
+const LABEL: Record<Side, string> = { LEFT: 'שמאל', RIGHT: 'ימין', BOTH: 'שניהם' };
 
 export function SideButton({ side, selected, recommended, onPress }: Props) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Select ${side.toLowerCase()} side`}
+      accessibilityLabel={`בחירת צד ${LABEL[side]}`}
       accessibilityState={{ selected }}
       onPress={() => {
         Haptics.selectionAsync();
@@ -25,10 +25,10 @@ export function SideButton({ side, selected, recommended, onPress }: Props) {
         selected ? 'bg-brand-600' : 'bg-brand-100'
       }`}
     >
-      <Text className={`text-3xl font-bold ${selected ? 'text-white' : 'text-brand-700'}`}>{LABEL[side]}</Text>
+      <Text className={`text-2xl font-bold ${selected ? 'text-white' : 'text-brand-700'}`}>{LABEL[side]}</Text>
       {recommended && !selected ? (
         <View className="mt-1 rounded-full bg-brand-200 px-2 py-0.5">
-          <Text className="text-[10px] font-semibold uppercase tracking-wide text-brand-700">Suggested</Text>
+          <Text className="text-[10px] font-semibold tracking-wide text-brand-700">מומלץ</Text>
         </View>
       ) : null}
     </Pressable>

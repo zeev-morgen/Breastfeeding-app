@@ -1,9 +1,9 @@
 import type { Side } from './types';
 
 export const SIDE_LABEL: Record<Side, string> = {
-  LEFT: 'Left',
-  RIGHT: 'Right',
-  BOTH: 'Both',
+  LEFT: 'שמאל',
+  RIGHT: 'ימין',
+  BOTH: 'שני הצדדים',
 };
 
 export function formatRelative(isoDate: string, now = new Date()): string {
@@ -13,10 +13,10 @@ export function formatRelative(isoDate: string, now = new Date()): string {
   const mins = Math.round(abs / 60_000);
   const hours = Math.floor(mins / 60);
   const remMins = mins % 60;
-  const phrase = hours > 0 ? `${hours}h ${remMins}m` : `${mins}m`;
-  return diff >= 0 ? `in ${phrase}` : `${phrase} ago`;
+  const phrase = hours > 0 ? `${hours} שעות ${remMins} דק׳` : `${mins} דק׳`;
+  return diff >= 0 ? `בעוד ${phrase}` : `לפני ${phrase}`;
 }
 
 export function formatClock(isoDate: string): string {
-  return new Date(isoDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(isoDate).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
 }
