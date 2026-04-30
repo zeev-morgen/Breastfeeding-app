@@ -3,7 +3,6 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/store';
-import '../global.css';
 
 export default function RootLayout() {
   const { hydrated, hydrate, token } = useAuth();
