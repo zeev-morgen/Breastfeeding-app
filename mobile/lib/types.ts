@@ -25,6 +25,7 @@ export interface CreateLogPayload {
   side: Side;
   qualityScore: number;
   durationMin: number;
+  startTime?: string;
   notes?: string;
 }
 
