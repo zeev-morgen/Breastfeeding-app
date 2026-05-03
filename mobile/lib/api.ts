@@ -35,6 +35,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
+        // Bypass ngrok-free browser warning HTML interstitial.
+        'ngrok-skip-browser-warning': 'true',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(init.headers ?? {}),
       },
