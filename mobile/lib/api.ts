@@ -22,16 +22,31 @@ class ApiError extends Error {
   }
 }
 
+const REQUEST_TIMEOUT_MS = 15_000;
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = await getToken();
-  const res = await fetch(`${apiBaseUrl}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init.headers ?? {}),
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${apiBaseUrl}${path}`, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init.headers ?? {}),
+      },
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new ApiError(0, `אין תגובה מהשרת (${apiBaseUrl}). בדקי חיבור או כתובת.`);
+    }
+    throw new ApiError(0, `שגיאת רשת: ${err instanceof Error ? err.message : 'unknown'}`);
+  } finally {
+    clearTimeout(timeout);
+  }
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;
   if (!res.ok) {
