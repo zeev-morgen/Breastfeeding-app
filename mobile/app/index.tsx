@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -10,15 +10,24 @@ import { QualityRating } from '@/components/QualityRating';
 import { DurationStepper } from '@/components/DurationStepper';
 import { SessionCard } from '@/components/SessionCard';
 import { GuidanceTip } from '@/components/GuidanceTip';
+import { DailySummary } from '@/components/DailySummary';
+import { StartTimePicker } from '@/components/StartTimePicker';
 import { useAuth } from '@/lib/store';
+import { isToday, SIDE_LABEL } from '@/lib/format';
+import { scheduleNextFeedingReminder } from '@/lib/notifications';
 
 const SIDES: Side[] = ['LEFT', 'RIGHT', 'BOTH'];
+
+function reminderBody(side: Side): string {
+  return `מומלץ צד ${SIDE_LABEL[side]}`;
+}
 
 export default function QuickLogScreen() {
   const { signOut, user } = useAuth();
 
   const [latest, setLatest] = useState<FeedingLog | null>(null);
   const [guidance, setGuidance] = useState<Guidance | null>(null);
+  const [recentLogs, setRecentLogs] = useState<FeedingLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -26,41 +35,66 @@ export default function QuickLogScreen() {
   const [side, setSide] = useState<Side | null>(null);
   const [durationMin, setDurationMin] = useState(15);
   const [qualityScore, setQualityScore] = useState(4);
+  const [startTime, setStartTime] = useState<Date | null>(null);
 
-  const loadLatest = useCallback(async () => {
+  const todayLogs = useMemo(() => recentLogs.filter((l) => isToday(l.startTime)), [recentLogs]);
+
+  const refreshState = useCallback(async (): Promise<Guidance> => {
+    const [latestResp, listResp] = await Promise.all([api.getLatest(), api.listLogs(50)]);
+    setLatest(latestResp.log);
+    setGuidance(latestResp.guidance);
+    setRecentLogs(listResp.logs);
+    void scheduleNextFeedingReminder(
+      new Date(latestResp.guidance.nextFeedingAt),
+      reminderBody(latestResp.guidance.nextSide),
+    );
+    return latestResp.guidance;
+  }, []);
+
+  const loadInitial = useCallback(async () => {
     try {
-      const { log, guidance: g } = await api.getLatest();
-      setLatest(log);
-      setGuidance(g);
-      if (!side) setSide(g.nextSide);
+      const g = await refreshState();
+      setSide((cur) => cur ?? g.nextSide);
     } catch (err) {
       Alert.alert('טעינה נכשלה', err instanceof Error ? err.message : 'שגיאה לא ידועה');
     } finally {
       setLoading(false);
     }
-  }, [side]);
+  }, [refreshState]);
 
   useEffect(() => {
-    void loadLatest();
-  }, [loadLatest]);
+    void loadInitial();
+  }, [loadInitial]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadLatest();
-    setRefreshing(false);
-  }, [loadLatest]);
+    try {
+      await refreshState();
+    } catch (err) {
+      Alert.alert('טעינה נכשלה', err instanceof Error ? err.message : 'שגיאה לא ידועה');
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshState]);
 
   const onSubmit = useCallback(async () => {
     if (!side) return;
     setSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      const { log, guidance: g } = await api.createLog({ side, durationMin, qualityScore });
-      setLatest(log);
-      setGuidance(g);
+      await api.createLog({
+        side,
+        durationMin,
+        qualityScore,
+        ...(startTime ? { startTime: startTime.toISOString() } : {}),
+      });
+      // Re-fetch so guidance + latest reflect the true newest log even when
+      // the user reported a feeding from earlier today.
+      const g = await refreshState();
       setSide(g.nextSide);
       setDurationMin(15);
       setQualityScore(4);
+      setStartTime(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -68,7 +102,7 @@ export default function QuickLogScreen() {
     } finally {
       setSubmitting(false);
     }
-  }, [side, durationMin, qualityScore]);
+  }, [side, durationMin, qualityScore, startTime, refreshState]);
 
   if (loading || !guidance) {
     return (
@@ -86,24 +120,35 @@ export default function QuickLogScreen() {
       >
         <View className="mb-2 flex-row items-center justify-between">
           <Text className="text-2xl font-bold text-brand-700">היי {user?.displayName ?? 'אמא'} 👋</Text>
-          <View className="flex-row gap-4">
-            <Link href="/history" asChild>
-              <Pressable accessibilityRole="button" accessibilityLabel="היסטוריה">
-                <Text className="text-sm font-semibold text-brand-600">היסטוריה</Text>
-              </Pressable>
-            </Link>
-            <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="יציאה">
-              <Text className="text-sm font-semibold text-brand-600">יציאה</Text>
-            </Pressable>
-          </View>
+          <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="יציאה">
+            <Text className="text-sm font-semibold text-brand-600">יציאה</Text>
+          </Pressable>
         </View>
 
         <View className="gap-4">
           <SessionCard latest={latest} guidance={guidance} />
+          <DailySummary logs={todayLogs} />
+
+          <Link href="/history" asChild>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="פתיחת היסטוריית הנקות"
+              className="flex-row items-center justify-between rounded-3xl bg-white px-5 py-4"
+            >
+              <Text className="text-base font-semibold text-brand-700">היסטוריית הנקות</Text>
+              <Text className="text-2xl font-light text-brand-600">›</Text>
+            </Pressable>
+          </Link>
+
           <GuidanceTip tip={guidance.tip} />
 
           <View className="rounded-3xl bg-white p-5">
-            <Text className="text-xs font-semibold uppercase tracking-wide text-brand-600">צד</Text>
+            <Text className="text-xs font-semibold uppercase tracking-wide text-brand-600">מתי?</Text>
+            <View className="mt-2">
+              <StartTimePicker value={startTime} onChange={setStartTime} />
+            </View>
+
+            <Text className="mt-5 text-xs font-semibold uppercase tracking-wide text-brand-600">צד</Text>
             <View className="mt-2 flex-row gap-3">
               {SIDES.map((s) => (
                 <SideButton

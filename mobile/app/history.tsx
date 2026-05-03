@@ -11,6 +11,7 @@ interface DayGroup {
   dateLabel: string;
   totalMin: number;
   count: number;
+  qualitySum: number;
   logs: FeedingLog[];
 }
 
@@ -44,12 +45,14 @@ function groupByDay(logs: FeedingLog[]): DayGroup[] {
     if (existing) {
       existing.logs.push(log);
       existing.totalMin += log.durationMin;
+      existing.qualitySum += log.qualityScore;
       existing.count += 1;
     } else {
       map.set(key, {
         dateKey: key,
         dateLabel: dayLabel(log.startTime),
         totalMin: log.durationMin,
+        qualitySum: log.qualityScore,
         count: 1,
         logs: [log],
       });
@@ -96,11 +99,12 @@ function LogRow({ log }: { log: FeedingLog }) {
 }
 
 function DayHeader({ group }: { group: DayGroup }) {
+  const avgQ = (group.qualitySum / group.count).toFixed(1);
   return (
     <View className="mb-2 mt-4 flex-row items-baseline justify-between px-1">
       <Text className="text-lg font-bold text-brand-700">{group.dateLabel}</Text>
       <Text className="text-xs text-gray-500">
-        {group.count} הנקות • {group.totalMin} דק׳
+        {group.count} הנקות • {group.totalMin} דק׳ • איכות {avgQ}/5
       </Text>
     </View>
   );
