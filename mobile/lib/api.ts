@@ -4,8 +4,7 @@ import type { AuthUser, CreateLogPayload, FeedingLog, Guidance } from './types';
 
 const TOKEN_KEY = 'lactasync.token';
 
-export const apiBaseUrl: string =
-  (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ?? 'http://localhost:4000';
+export const apiBaseUrl: string = 'https://overhung-prelaunch-aflutter.ngrok-free.dev';
 
 export async function setToken(token: string | null) {
   if (token) await AsyncStorage.setItem(TOKEN_KEY, token);
@@ -24,20 +23,30 @@ class ApiError extends Error {
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = await getToken();
-  const res = await fetch(`${apiBaseUrl}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init.headers ?? {}),
-    },
-  });
-  const text = await res.text();
-  const body = text ? JSON.parse(text) : null;
-  if (!res.ok) {
-    throw new ApiError(res.status, body?.message ?? `Request failed: ${res.status}`, body);
-  }
-  return body as T;
+  const fullUrl = `${apiBaseUrl}${path}`;
+  
+  console.log('🚀 TRYING TO FETCH:', fullUrl);
+
+  try {
+    const res = await fetch(fullUrl, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init.headers ?? {}),
+      },
+    });
+    
+    
+    const text = await res.text();
+    const body = text ? JSON.parse(text) : null;
+    
+    if (!res.ok) {
+      throw new ApiError(res.status, body?.message ?? `Request failed: ${res.status}`, body);
+    }
+    
+    return body as T;
 }
 
 export const api = {
