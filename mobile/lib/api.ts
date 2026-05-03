@@ -4,8 +4,7 @@ import type { AuthUser, CreateLogPayload, FeedingLog, Guidance } from './types';
 
 const TOKEN_KEY = 'lactasync.token';
 
-export const apiBaseUrl: string = 'https://overhung-prelaunch-aflutter.ngrok-free.dev';
-
+export const apiBaseUrl: string = 'https://breastfeeding-app.onrender.com';
 export async function setToken(token: string | null) {
   if (token) await AsyncStorage.setItem(TOKEN_KEY, token);
   else await AsyncStorage.removeItem(TOKEN_KEY);
@@ -25,14 +24,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = await getToken();
   const fullUrl = `${apiBaseUrl}${path}`;
   
-  console.log('🚀 TRYING TO FETCH:', fullUrl);
-
-  try {
+ 
     const res = await fetch(fullUrl, {
       ...init,
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(init.headers ?? {}),
       },
