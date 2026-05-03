@@ -21,7 +21,13 @@
       "package": "com.lactasync.app"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "color": "#DB2777"
+        }
+      ]
     ],
     "extra": {
       "apiBaseUrl": "https://breastfeeding-app.onrender.com",

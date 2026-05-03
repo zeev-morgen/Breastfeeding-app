@@ -20,3 +20,20 @@ export function formatRelative(isoDate: string, now = new Date()): string {
 export function formatClock(isoDate: string): string {
   return new Date(isoDate).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
 }
+
+export function formatShortDate(d: Date): string {
+  return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' });
+}
+
+export function formatShortTime(d: Date): string {
+  return d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+}
+
+export function isToday(isoDate: string, now = new Date()): boolean {
+  const d = new Date(isoDate);
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
