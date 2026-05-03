@@ -13,14 +13,9 @@ import { GuidanceTip } from '@/components/GuidanceTip';
 import { DailySummary } from '@/components/DailySummary';
 import { StartTimePicker } from '@/components/StartTimePicker';
 import { useAuth } from '@/lib/store';
-import { isToday, SIDE_LABEL } from '@/lib/format';
-import { scheduleNextFeedingReminder } from '@/lib/notifications';
+import { isToday } from '@/lib/format';
 
 const SIDES: Side[] = ['LEFT', 'RIGHT', 'BOTH'];
-
-function reminderBody(side: Side): string {
-  return `מומלץ צד ${SIDE_LABEL[side]}`;
-}
 
 export default function QuickLogScreen() {
   const { signOut, user } = useAuth();
@@ -44,10 +39,6 @@ export default function QuickLogScreen() {
     setLatest(latestResp.log);
     setGuidance(latestResp.guidance);
     setRecentLogs(listResp.logs);
-    void scheduleNextFeedingReminder(
-      new Date(latestResp.guidance.nextFeedingAt),
-      reminderBody(latestResp.guidance.nextSide),
-    );
     return latestResp.guidance;
   }, []);
 
