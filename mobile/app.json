@@ -17,9 +17,21 @@
     "android": {
       "package": "com.lactasync.app"
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "extra": {
-      "apiBaseUrl": "https://overhung-prelaunch-aflutter.ngrok-free.dev"
+      "apiBaseUrl": "https://breastfeeding-app.onrender.com",
+      "router": {},
+      "eas": {
+        "projectId": "90088703-36dc-4c8f-b9e5-ed135f6cbc3a"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/90088703-36dc-4c8f-b9e5-ed135f6cbc3a"
     }
   }
 }
