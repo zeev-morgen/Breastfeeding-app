@@ -12,6 +12,9 @@ export interface FeedingLog {
   source: 'APP' | 'WHATSAPP';
   createdAt: string;
   updatedAt: string;
+  // Client-only marker — the row was queued offline and not yet acknowledged
+  // by the server. Server responses never set this.
+  pending?: boolean;
 }
 
 export interface Guidance {

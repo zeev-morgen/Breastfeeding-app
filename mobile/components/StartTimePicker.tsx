@@ -1,29 +1,44 @@
-import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import {
+  FlatList,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Pressable,
+  Text,
+  View,
+} from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { composePastDate } from '@/lib/format';
 
 interface Props {
   value: Date | null;
   onChange: (value: Date | null) => void;
 }
 
-const HOURS_MAX = 12;
-const MINUTES_STEP = 5;
-const MINUTES_MAX = 55;
-const DEFAULT_MIN_AGO = 30;
+const ITEM_HEIGHT = 44;
+const VISIBLE_ITEMS = 5;
+const PADDING = ((VISIBLE_ITEMS - 1) / 2) * ITEM_HEIGHT;
+
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);
+
+function pad(n: number): string {
+  return String(n).padStart(2, '0');
+}
 
 export function StartTimePicker({ value, onChange }: Props) {
   const isCustom = value !== null;
 
-  // Track the offset locally so successive +/- presses operate on the same
-  // baseline — rebuilding it from `value` would re-anchor every render to "now".
-  const [hoursAgo, setHoursAgo] = useState(0);
-  const [minutesAgo, setMinutesAgo] = useState(DEFAULT_MIN_AGO);
+  // Initial wheel position: round current time to the nearest 5-minute slot.
+  const initial = useMemo(() => {
+    const d = value ?? new Date();
+    const hh = d.getHours();
+    const mm = Math.round(d.getMinutes() / 5) * 5;
+    return { hh, mm: mm === 60 ? 55 : mm };
+  }, [value]);
 
-  const emit = (h: number, m: number) => {
-    const totalMin = h * 60 + m;
-    onChange(new Date(Date.now() - totalMin * 60_000));
-  };
+  const [hh, setHh] = useState<number>(initial.hh);
+  const [mm, setMm] = useState<number>(initial.mm);
 
   const switchToNow = () => {
     Haptics.selectionAsync();
@@ -32,23 +47,21 @@ export function StartTimePicker({ value, onChange }: Props) {
 
   const switchToCustom = () => {
     Haptics.selectionAsync();
-    setHoursAgo(0);
-    setMinutesAgo(DEFAULT_MIN_AGO);
-    emit(0, DEFAULT_MIN_AGO);
+    const now = new Date();
+    const startHh = now.getHours();
+    const startMm = Math.min(55, Math.round(now.getMinutes() / 5) * 5);
+    setHh(startHh);
+    setMm(startMm);
+    onChange(composePastDate(startHh, startMm));
   };
 
-  const setHours = (next: number) => {
-    Haptics.selectionAsync();
-    const clamped = Math.max(0, Math.min(HOURS_MAX, next));
-    setHoursAgo(clamped);
-    emit(clamped, minutesAgo);
+  const updateHh = (next: number) => {
+    setHh(next);
+    onChange(composePastDate(next, mm));
   };
-
-  const setMinutes = (next: number) => {
-    Haptics.selectionAsync();
-    const clamped = Math.max(0, Math.min(MINUTES_MAX, next));
-    setMinutesAgo(clamped);
-    emit(hoursAgo, clamped);
+  const updateMm = (next: number) => {
+    setMm(next);
+    onChange(composePastDate(hh, next));
   };
 
   return (
@@ -67,23 +80,28 @@ export function StartTimePicker({ value, onChange }: Props) {
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="דיווח רטרואקטיבי"
+          accessibilityLabel="בחירת מועד מהשעון"
           accessibilityState={{ selected: isCustom }}
           onPress={switchToCustom}
           className={`flex-1 items-center justify-center rounded-2xl py-3 ${
             isCustom ? 'bg-brand-600' : 'bg-brand-100'
           }`}
         >
-          <Text className={`font-bold ${isCustom ? 'text-white' : 'text-brand-700'}`}>מועד אחר</Text>
+          <Text className={`font-bold ${isCustom ? 'text-white' : 'text-brand-700'}`}>
+            {isCustom ? `${pad(hh)}:${pad(mm)}` : 'מועד אחר'}
+          </Text>
         </Pressable>
       </View>
 
       {isCustom ? (
-        <View className="mt-3 rounded-2xl bg-brand-50 p-3">
-          <Text className="text-center text-xs font-semibold tracking-wide text-brand-700">לפני</Text>
-          <View className="mt-2 flex-row gap-2">
-            <OffsetStepper label="שעות" value={hoursAgo} onChange={setHours} step={1} max={HOURS_MAX} />
-            <OffsetStepper label="דקות" value={minutesAgo} onChange={setMinutes} step={MINUTES_STEP} max={MINUTES_MAX} />
+        <View className="mt-3 rounded-2xl bg-brand-50 px-3 pt-3 pb-2">
+          <Text className="text-center text-3xl font-bold text-brand-700">
+            {pad(hh)}:{pad(mm)}
+          </Text>
+          <View className="mt-2 flex-row items-center justify-center gap-3">
+            <WheelColumn values={HOURS} value={hh} onChange={updateHh} label="שעות" />
+            <Text className="text-2xl font-bold text-brand-700">:</Text>
+            <WheelColumn values={MINUTES} value={mm} onChange={updateMm} label="דקות" />
           </View>
         </View>
       ) : null}
@@ -91,37 +109,74 @@ export function StartTimePicker({ value, onChange }: Props) {
   );
 }
 
-interface OffsetStepperProps {
-  label: string;
+interface WheelProps {
+  values: number[];
   value: number;
   onChange: (next: number) => void;
-  step: number;
-  max: number;
+  label: string;
 }
 
-function OffsetStepper({ label, value, onChange, step, max }: OffsetStepperProps) {
+function WheelColumn({ values, value, onChange, label }: WheelProps) {
+  const listRef = useRef<FlatList<number>>(null);
+  const initialIndex = Math.max(0, values.indexOf(value));
+
+  const handleEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
+    const clamped = Math.max(0, Math.min(values.length - 1, idx));
+    const next = values[clamped]!;
+    if (next !== value) {
+      Haptics.selectionAsync();
+      onChange(next);
+    }
+  };
+
   return (
-    <View className="flex-1 flex-row items-center justify-between rounded-2xl bg-white p-2">
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`הפחתת ${label}`}
-        onPress={() => onChange(Math.max(0, value - step))}
-        className="h-10 w-10 items-center justify-center rounded-full bg-brand-100"
-      >
-        <Text className="text-xl font-bold text-brand-700">−</Text>
-      </Pressable>
-      <View className="items-center">
-        <Text className="text-xl font-bold text-brand-700">{value}</Text>
-        <Text className="text-[10px] tracking-wide text-brand-700">{label}</Text>
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`הוספת ${label}`}
-        onPress={() => onChange(Math.min(max, value + step))}
-        className="h-10 w-10 items-center justify-center rounded-full bg-brand-100"
-      >
-        <Text className="text-xl font-bold text-brand-700">+</Text>
-      </Pressable>
+    <View
+      accessibilityLabel={`גלגל בחירת ${label}`}
+      style={{ height: VISIBLE_ITEMS * ITEM_HEIGHT, width: 80, overflow: 'hidden' }}
+    >
+      <FlatList
+        ref={listRef}
+        data={values}
+        keyExtractor={(item) => String(item)}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM_HEIGHT}
+        decelerationRate="fast"
+        onMomentumScrollEnd={handleEnd}
+        initialScrollIndex={initialIndex}
+        getItemLayout={(_, index) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index })}
+        contentContainerStyle={{ paddingVertical: PADDING }}
+        renderItem={({ item }) => {
+          const distance = Math.abs(item - value);
+          const isSelected = item === value;
+          return (
+            <View style={{ height: ITEM_HEIGHT, justifyContent: 'center', alignItems: 'center' }}>
+              <Text
+                style={{
+                  fontSize: isSelected ? 24 : 20,
+                  fontWeight: isSelected ? '700' : '400',
+                  color: isSelected ? '#BE185D' : distance > 5 ? '#D1D5DB' : '#9CA3AF',
+                }}
+              >
+                {pad(item)}
+              </Text>
+            </View>
+          );
+        }}
+      />
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: PADDING,
+          left: 0,
+          right: 0,
+          height: ITEM_HEIGHT,
+          borderTopWidth: 1,
+          borderBottomWidth: 1,
+          borderColor: '#FBCFE8',
+        }}
+      />
     </View>
   );
 }

@@ -7,7 +7,6 @@ interface Props {
 
 export function DailySummary({ logs }: Props) {
   const count = logs.length;
-  const totalMin = logs.reduce((s, l) => s + l.durationMin, 0);
   const avgQuality = count ? logs.reduce((s, l) => s + l.qualityScore, 0) / count : 0;
 
   return (
@@ -18,7 +17,6 @@ export function DailySummary({ logs }: Props) {
       ) : (
         <View className="mt-2 flex-row gap-4">
           <Stat value={String(count)} label="הנקות" />
-          <Stat value={String(totalMin)} label="דקות" />
           <Stat value={`${avgQuality.toFixed(1)}/5`} label="איכות ממוצעת" />
         </View>
       )}

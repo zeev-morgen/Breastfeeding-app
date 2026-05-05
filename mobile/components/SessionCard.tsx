@@ -14,9 +14,7 @@ export function SessionCard({ latest, guidance }: Props) {
       {latest ? (
         <View className="mt-1 flex-row items-baseline gap-2">
           <Text className="text-2xl font-bold text-gray-900">{SIDE_LABEL[latest.side]}</Text>
-          <Text className="text-base text-gray-600">
-            • {latest.durationMin} דק׳ • {latest.qualityScore}/5
-          </Text>
+          <Text className="text-base text-gray-600">• {latest.qualityScore}/5</Text>
         </View>
       ) : (
         <Text className="mt-1 text-base text-gray-500">עדיין אין הנקות — תיעוד ראשון בתחתית.</Text>

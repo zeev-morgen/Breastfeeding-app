@@ -3,15 +3,20 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/store';
+import { useOfflineQueue } from '@/lib/offline-queue';
 
 export default function RootLayout() {
   const { hydrated, hydrate, token } = useAuth();
+  const hydrateQueue = useOfflineQueue((s) => s.hydrate);
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
     void hydrate();
-  }, [hydrate]);
+    // The queue store keeps its own subscription to network changes and
+    // auto-flushes on reconnect, so we just need to kick it off once.
+    void hydrateQueue();
+  }, [hydrate, hydrateQueue]);
 
   useEffect(() => {
     if (!hydrated) return;

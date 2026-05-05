@@ -29,3 +29,17 @@ export function isToday(isoDate: string, now = new Date()): boolean {
     d.getDate() === now.getDate()
   );
 }
+
+/**
+ * Build a Date for HH:MM "earlier today" — if the chosen clock time is later
+ * than the current time, treat it as yesterday. Used by the wheel picker so
+ * "16:30" picked at 14:00 means yesterday 16:30, not 16:30 in the future.
+ */
+export function composePastDate(hh: number, mm: number, now = new Date()): Date {
+  const candidate = new Date(now);
+  candidate.setHours(hh, mm, 0, 0);
+  if (candidate.getTime() > now.getTime()) {
+    candidate.setDate(candidate.getDate() - 1);
+  }
+  return candidate;
+}
