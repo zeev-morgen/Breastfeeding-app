@@ -1,11 +1,21 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Crypto from 'expo-crypto';
 import { api, ApiError } from './api';
-import { getInitialOnline, subscribeOnline } from './network';
 import type { CreateLogPayload, FeedingLog } from './types';
 
 const QUEUE_KEY = 'lactasync.queue.v1';
+
+/**
+ * Pure-JS UUID v4 — avoids the expo-crypto native module so the offline
+ * queue ships entirely via OTA on existing builds.
+ */
+function uuid(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 export interface PendingLog extends CreateLogPayload {
   localId: string;
@@ -28,22 +38,21 @@ export const useOfflineQueue = create<OfflineState>((set, get) => ({
   flushing: false,
 
   hydrate: async () => {
-    const [raw, online] = await Promise.all([
-      AsyncStorage.getItem(QUEUE_KEY),
-      getInitialOnline(),
-    ]);
-    const pending: PendingLog[] = raw ? JSON.parse(raw) : [];
-    set({ pending, isOnline: online });
+    try {
+      const raw = await AsyncStorage.getItem(QUEUE_KEY);
+      const pending: PendingLog[] = raw ? JSON.parse(raw) : [];
+      set({ pending });
+    } catch {
+      // ignore hydration error — queue starts empty
+    }
+  },
 
-    subscribeOnline((next) => {
-      const wasOnline = get().isOnline;
-      set({ isOnline: next });
-      if (next && !wasOnline && get().pending.length > 0) {
-        void get().flush();
-      }
-    });
-
-    if (online && pending.length > 0) {
+  setOnline: (online) => {
+    const wasOnline = get().isOnline;
+    if (wasOnline === online) return;
+    set({ isOnline: online });
+    // Auto-flush whenever connectivity is restored and we have pending work.
+    if (online && get().pending.length > 0) {
       void get().flush();
     }
   },
@@ -51,7 +60,7 @@ export const useOfflineQueue = create<OfflineState>((set, get) => ({
   enqueue: async (payload) => {
     const entry: PendingLog = {
       ...payload,
-      localId: Crypto.randomUUID(),
+      localId: uuid(),
       queuedAt: Date.now(),
     };
     const next = [...get().pending, entry];
@@ -67,8 +76,6 @@ export const useOfflineQueue = create<OfflineState>((set, get) => ({
     let sent = 0;
     let failed = 0;
     try {
-      // Snapshot at start; new items added concurrently will be flushed on
-      // the next tick (their own enqueue will call flush again if online).
       for (const entry of [...get().pending]) {
         try {
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -80,9 +87,7 @@ export const useOfflineQueue = create<OfflineState>((set, get) => ({
           sent += 1;
         } catch (err) {
           if (err instanceof ApiError && err.status >= 400 && err.status < 500) {
-            // Server rejected the payload (validation, auth) — drop so we
-            // don't retry forever. Surface to the user via a console log;
-            // the screen will refetch and the row simply won't reappear.
+            // Server rejected — drop so the user isn't stuck retrying forever.
             const remaining = get().pending.filter((p) => p.localId !== entry.localId);
             set({ pending: remaining });
             await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
@@ -90,8 +95,9 @@ export const useOfflineQueue = create<OfflineState>((set, get) => ({
             // eslint-disable-next-line no-console
             console.warn('Dropping queued log rejected by server', entry.localId, err.message);
           } else {
-            // Network blip / 5xx — keep in queue, stop the loop, retry next
-            // reconnect. Avoids burning the queue on a transient outage.
+            // Network blip / 5xx — flip back to offline, stop the loop, retry
+            // on next reconnect (the next successful fetch flips us back).
+            set({ isOnline: false });
             break;
           }
         }
@@ -102,8 +108,6 @@ export const useOfflineQueue = create<OfflineState>((set, get) => ({
 
     return { sent, failed };
   },
-
-  setOnline: (online) => set({ isOnline: online }),
 }));
 
 /**
@@ -112,9 +116,10 @@ export const useOfflineQueue = create<OfflineState>((set, get) => ({
  */
 export function pendingToLog(p: PendingLog, userId: string): FeedingLog {
   const startTime = p.startTime ?? new Date().toISOString();
-  const endTime = p.durationMin > 0
-    ? new Date(new Date(startTime).getTime() + p.durationMin * 60_000).toISOString()
-    : null;
+  const endTime =
+    p.durationMin > 0
+      ? new Date(new Date(startTime).getTime() + p.durationMin * 60_000).toISOString()
+      : null;
   return {
     id: p.localId,
     userId,
