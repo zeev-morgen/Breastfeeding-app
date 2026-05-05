@@ -52,6 +52,7 @@ export default function QuickLogScreen() {
   const pending = useOfflineQueue((s) => s.pending);
   const flushing = useOfflineQueue((s) => s.flushing);
   const enqueue = useOfflineQueue((s) => s.enqueue);
+  const setOnline = useOfflineQueue((s) => s.setOnline);
 
   const [latest, setLatest] = useState<FeedingLog | null>(null);
   const [guidance, setGuidance] = useState<Guidance | null>(null);
@@ -106,13 +107,25 @@ export default function QuickLogScreen() {
   }, []);
 
   const refreshFromServer = useCallback(async (): Promise<Guidance | null> => {
-    const [latestResp, listResp] = await Promise.all([api.getLatest(), api.listLogs(50)]);
-    setLatest(latestResp.log);
-    setGuidance(latestResp.guidance);
-    setRecentLogs(listResp.logs);
-    void persistCache({ latest: latestResp.log, guidance: latestResp.guidance, recentLogs: listResp.logs });
-    return latestResp.guidance;
-  }, [persistCache]);
+    try {
+      const [latestResp, listResp] = await Promise.all([api.getLatest(), api.listLogs(50)]);
+      setLatest(latestResp.log);
+      setGuidance(latestResp.guidance);
+      setRecentLogs(listResp.logs);
+      void persistCache({
+        latest: latestResp.log,
+        guidance: latestResp.guidance,
+        recentLogs: listResp.logs,
+      });
+      // A successful round-trip is the strongest signal we're online; flips
+      // isOnline back to true and triggers the queue flush if there's work.
+      setOnline(true);
+      return latestResp.guidance;
+    } catch (err) {
+      if (!(err instanceof ApiError)) setOnline(false);
+      throw err;
+    }
+  }, [persistCache, setOnline]);
 
   const loadInitial = useCallback(async () => {
     const hadCache = await hydrateFromCache();
@@ -180,7 +193,13 @@ export default function QuickLogScreen() {
         const g = await refreshFromServer();
         finishOk(g?.nextSide);
       } catch (err) {
-        if (err instanceof ApiError) throw err;
+        if (err instanceof ApiError) {
+          // Server said no — don't queue, surface the error.
+          throw err;
+        }
+        // Network error mid-request → flip to offline + enqueue so the user
+        // doesn't lose the entry. The next successful fetch flushes the queue.
+        setOnline(false);
         await enqueue(payload);
         finishOk();
       }
@@ -190,7 +209,7 @@ export default function QuickLogScreen() {
     } finally {
       setSubmitting(false);
     }
-  }, [side, qualityScore, startTime, isOnline, enqueue, refreshFromServer]);
+  }, [side, qualityScore, startTime, isOnline, enqueue, setOnline, refreshFromServer]);
 
   if (loading) {
     return (
