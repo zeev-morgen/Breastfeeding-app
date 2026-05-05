@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AuthUser, CreateLogPayload, FeedingLog, Guidance } from './types';
 
 const TOKEN_KEY = 'lactasync.token';
+const USER_KEY = 'lactasync.user';
 
 export const apiBaseUrl: string = 'https://breastfeeding-app.onrender.com';
 export async function setToken(token: string | null) {
@@ -12,6 +13,21 @@ export async function setToken(token: string | null) {
 
 export async function getToken(): Promise<string | null> {
   return AsyncStorage.getItem(TOKEN_KEY);
+}
+
+export async function setUser(user: AuthUser | null) {
+  if (user) await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+  else await AsyncStorage.removeItem(USER_KEY);
+}
+
+export async function getUser(): Promise<AuthUser | null> {
+  const raw = await AsyncStorage.getItem(USER_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as AuthUser;
+  } catch {
+    return null;
+  }
 }
 
 class ApiError extends Error {
