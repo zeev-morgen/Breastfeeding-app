@@ -155,7 +155,7 @@ function WheelColumn({ values, value, onChange, label }: WheelProps) {
                 style={{
                   fontSize: isSelected ? 24 : 20,
                   fontWeight: isSelected ? '700' : '400',
-                  color: isSelected ? '#BE185D' : distance > 5 ? '#D1D5DB' : '#9CA3AF',
+                  color: isSelected ? '#C76A4A' : distance > 5 ? '#D1D5DB' : '#A8998F',
                 }}
               >
                 {pad(item)}
@@ -174,7 +174,7 @@ function WheelColumn({ values, value, onChange, label }: WheelProps) {
           height: ITEM_HEIGHT,
           borderTopWidth: 1,
           borderBottomWidth: 1,
-          borderColor: '#FBCFE8',
+          borderColor: '#E6DBCB',
         }}
       />
     </View>

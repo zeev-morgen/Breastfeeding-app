@@ -1,4 +1,4 @@
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { FeedingLog, Guidance } from '@/lib/types';
 import { SIDE_LABEL, formatClock, formatRelative } from '@/lib/format';
 
@@ -7,29 +7,161 @@ interface Props {
   guidance: Guidance;
 }
 
+function QualityDots({ score }: { score: number }) {
+  return (
+    <View style={s.dotsRow}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <View
+          key={n}
+          style={[s.dot, n <= score ? s.dotFilled : s.dotEmpty]}
+        />
+      ))}
+    </View>
+  );
+}
+
 export function SessionCard({ latest, guidance }: Props) {
   return (
-    <View className="rounded-3xl bg-white p-5 shadow-sm">
-      <Text className="text-xs font-semibold tracking-wide text-brand-600">ההנקה האחרונה</Text>
-      {latest ? (
-        <View className="mt-1 flex-row items-baseline gap-2">
-          <Text className="text-2xl font-bold text-gray-900">{SIDE_LABEL[latest.side]}</Text>
-          <Text className="text-base text-gray-600">• {latest.qualityScore}/5</Text>
-        </View>
-      ) : (
-        <Text className="mt-1 text-base text-gray-500">עדיין אין הנקות — תיעוד ראשון בתחתית.</Text>
-      )}
-      {latest ? (
-        <Text className="mt-1 text-sm text-gray-500">{formatRelative(latest.startTime)}</Text>
-      ) : null}
+    <View style={s.card}>
+      {/* Last feeding */}
+      <View style={s.section}>
+        <Text style={s.sectionLabel}>ההנקה האחרונה</Text>
+        {latest ? (
+          <View style={s.lastRow}>
+            <View style={s.lastLeft}>
+              <Text style={s.sideText}>{SIDE_LABEL[latest.side]}</Text>
+              <Text style={s.timeText}>{formatRelative(latest.startTime)}</Text>
+            </View>
+            <QualityDots score={latest.qualityScore} />
+          </View>
+        ) : (
+          <Text style={s.emptyText}>עדיין אין הנקות — תיעוד ראשון למטה.</Text>
+        )}
+      </View>
 
-      <View className="mt-4 border-t border-gray-100 pt-3">
-        <Text className="text-xs font-semibold tracking-wide text-brand-600">ההנקה הבאה</Text>
-        <Text className="mt-1 text-base text-gray-900">
-          צד {SIDE_LABEL[guidance.nextSide]} בערך ב-{formatClock(guidance.nextFeedingAt)} (
-          {formatRelative(guidance.nextFeedingAt)})
-        </Text>
+      <View style={s.divider} />
+
+      {/* Next feeding */}
+      <View style={s.section}>
+        <Text style={s.sectionLabel}>ההנקה הבאה — בערך</Text>
+        <View style={s.nextRow}>
+          <View style={s.nextLeft}>
+            <Text style={s.nextSide}>
+              <Text style={s.nextSideAccent}>{SIDE_LABEL[guidance.nextSide]}</Text>
+              {' · '}
+              {formatClock(guidance.nextFeedingAt)}
+            </Text>
+            <Text style={s.nextRelative}>{formatRelative(guidance.nextFeedingAt)}</Text>
+          </View>
+          {/* Countdown ring - simplified View */}
+          <View style={s.ring}>
+            <Text style={s.ringLabel}>
+              {Math.max(0, Math.round((new Date(guidance.nextFeedingAt).getTime() - Date.now()) / 60000))}′
+            </Text>
+          </View>
+        </View>
       </View>
     </View>
   );
 }
+
+const SURFACE = '#FBF6EE';
+const INK = '#2B1F1A';
+const INK_SOFT = '#6B5A50';
+const PRIMARY = '#C76A4A';
+const LINE = '#E6DBCB';
+
+const s = StyleSheet.create({
+  card: {
+    backgroundColor: SURFACE,
+    borderRadius: 24,
+    padding: 20,
+  },
+  section: {},
+  sectionLabel: {
+    fontSize: 10,
+    letterSpacing: 2,
+    color: INK_SOFT,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+    textAlign: 'right',
+  },
+  lastRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  lastLeft: {},
+  sideText: {
+    fontFamily: 'serif',
+    fontSize: 26,
+    color: INK,
+    fontWeight: '500',
+    textAlign: 'right',
+  },
+  timeText: {
+    fontSize: 13,
+    color: INK_SOFT,
+    marginTop: 2,
+    textAlign: 'right',
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    gap: 4,
+    alignItems: 'center',
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  dotFilled: { backgroundColor: PRIMARY },
+  dotEmpty: { backgroundColor: LINE },
+  emptyText: {
+    fontSize: 14,
+    color: INK_SOFT,
+    textAlign: 'right',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: LINE,
+    marginVertical: 14,
+  },
+  nextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  nextLeft: {},
+  nextSide: {
+    fontFamily: 'serif',
+    fontSize: 20,
+    color: INK,
+    fontWeight: '500',
+    textAlign: 'right',
+  },
+  nextSideAccent: {
+    color: PRIMARY,
+    fontStyle: 'italic',
+  },
+  nextRelative: {
+    fontSize: 12,
+    color: INK_SOFT,
+    marginTop: 2,
+    textAlign: 'right',
+  },
+  ring: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2.5,
+    borderColor: PRIMARY,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: INK,
+  },
+});

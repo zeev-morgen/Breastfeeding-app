@@ -1,4 +1,4 @@
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { FeedingLog } from '@/lib/types';
 
 interface Props {
@@ -7,28 +7,70 @@ interface Props {
 
 export function DailySummary({ logs }: Props) {
   const count = logs.length;
-  const avgQuality = count ? logs.reduce((s, l) => s + l.qualityScore, 0) / count : 0;
+  const avgQuality = count ? logs.reduce((acc, l) => acc + l.qualityScore, 0) / count : 0;
+
+  if (count === 0) return null;
 
   return (
-    <View className="rounded-3xl bg-white p-5">
-      <Text className="text-xs font-semibold uppercase tracking-wide text-brand-600">סיכום היום</Text>
-      {count === 0 ? (
-        <Text className="mt-2 text-sm text-gray-500">עדיין אין הנקות מתועדות היום.</Text>
-      ) : (
-        <View className="mt-2 flex-row gap-4">
-          <Stat value={String(count)} label="הנקות" />
-          <Stat value={`${avgQuality.toFixed(1)}/5`} label="איכות ממוצעת" />
-        </View>
-      )}
+    <View style={s.card}>
+      <Text style={s.sectionLabel}>סיכום היום</Text>
+      <View style={s.statsRow}>
+        <Stat value={String(count)} label="הנקות היום" />
+        <View style={s.divider} />
+        <Stat value={avgQuality.toFixed(1)} label="איכות ממוצעת" />
+      </View>
     </View>
   );
 }
 
 function Stat({ value, label }: { value: string; label: string }) {
   return (
-    <View className="flex-1">
-      <Text className="text-2xl font-bold text-gray-900">{value}</Text>
-      <Text className="text-xs text-gray-500">{label}</Text>
+    <View style={s.stat}>
+      <Text style={s.statValue}>{value}</Text>
+      <Text style={s.statLabel}>{label}</Text>
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  card: {
+    backgroundColor: '#FBF6EE',
+    borderRadius: 20,
+    padding: 18,
+  },
+  sectionLabel: {
+    fontSize: 10,
+    letterSpacing: 2,
+    color: '#6B5A50',
+    textTransform: 'uppercase',
+    marginBottom: 10,
+    textAlign: 'right',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  divider: {
+    width: 1,
+    height: 32,
+    backgroundColor: '#E6DBCB',
+    marginHorizontal: 16,
+  },
+  stat: {
+    flex: 1,
+  },
+  statValue: {
+    fontFamily: 'serif',
+    fontSize: 28,
+    color: '#2B1F1A',
+    lineHeight: 32,
+    textAlign: 'right',
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#6B5A50',
+    marginTop: 2,
+    letterSpacing: 0.3,
+    textAlign: 'right',
+  },
+});

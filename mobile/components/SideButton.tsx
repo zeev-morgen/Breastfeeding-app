@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import type { Side } from '@/lib/types';
 
@@ -12,6 +12,7 @@ interface Props {
 const LABEL: Record<Side, string> = { LEFT: 'שמאל', RIGHT: 'ימין', BOTH: 'שניהם' };
 
 export function SideButton({ side, selected, recommended, onPress }: Props) {
+  const fg = selected ? '#FBF6EE' : '#2B1F1A';
   return (
     <Pressable
       accessibilityRole="button"
@@ -21,16 +22,76 @@ export function SideButton({ side, selected, recommended, onPress }: Props) {
         Haptics.selectionAsync();
         onPress(side);
       }}
-      className={`flex-1 items-center justify-center rounded-3xl py-6 ${
-        selected ? 'bg-brand-600' : 'bg-brand-100'
-      }`}
+      style={({ pressed }) => [s.btn, selected ? s.selected : s.unselected, pressed && { opacity: 0.88 }]}
     >
-      <Text className={`text-2xl font-bold ${selected ? 'text-white' : 'text-brand-700'}`}>{LABEL[side]}</Text>
-      {recommended && !selected ? (
-        <View className="mt-1 rounded-full bg-brand-200 px-2 py-0.5">
-          <Text className="text-[10px] font-semibold tracking-wide text-brand-700">מומלץ</Text>
+      {/* Abstract breast glyph */}
+      <View style={[s.glyphWrap, side === 'RIGHT' && { transform: [{ scaleX: -1 }] }]}>
+        <View style={[s.glyphOuter, { borderColor: fg }]} />
+        <View style={[s.glyphDot, { backgroundColor: fg }]} />
+      </View>
+
+      <Text style={[s.label, { color: fg }]}>{LABEL[side]}</Text>
+
+      {recommended && !selected && (
+        <View style={s.badge}>
+          <Text style={s.badgeText}>מומלץ</Text>
         </View>
-      ) : null}
+      )}
     </Pressable>
   );
 }
+
+const s = StyleSheet.create({
+  btn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+  },
+  selected: { backgroundColor: '#2B1F1A' },
+  unselected: { backgroundColor: '#F4ECE2' },
+  glyphWrap: {
+    width: 26,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glyphOuter: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  glyphDot: {
+    position: 'absolute',
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    bottom: 3,
+  },
+  label: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -8,
+    right: 12,
+    backgroundColor: '#7A8C6F',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  badgeText: {
+    fontSize: 9,
+    color: '#FBF6EE',
+    letterSpacing: 0.8,
+    fontWeight: '600',
+  },
+});

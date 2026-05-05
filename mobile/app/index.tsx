@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  ImageBackground,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, ApiError } from '@/lib/api';
@@ -19,6 +30,14 @@ import { pendingToLog, useOfflineQueue } from '@/lib/offline-queue';
 
 const SIDES: Side[] = ['LEFT', 'RIGHT'];
 const CACHE_KEY = 'lactasync.cache.v1';
+
+// Soft background images for the home banner
+const BG_IMAGES = [
+  'https://images.unsplash.com/photo-1502872364588-894d7d6ddfab?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1517242810446-cc8951b2be40?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1519689680058-324335c77eba?w=800&auto=format&fit=crop&q=80',
+];
 
 interface CachedView {
   latest: FeedingLog | null;
@@ -45,9 +64,13 @@ export default function QuickLogScreen() {
   const [qualityScore, setQualityScore] = useState(4);
   const [startTime, setStartTime] = useState<Date | null>(null);
 
-  // Pending entries are server-unaware — synthesize FeedingLog rows so the
-  // home screen and inline history reflect them immediately. Server-confirmed
-  // rows always win on the next refresh because pending is cleared by flush.
+  // Rotate through background images
+  const [bgIdx, setBgIdx] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setBgIdx((i) => (i + 1) % BG_IMAGES.length), 10000);
+    return () => clearInterval(id);
+  }, []);
+
   const pendingLogs = useMemo<FeedingLog[]>(() => {
     if (!user) return [];
     return pending.map((p) => pendingToLog(p, user.id));
@@ -62,7 +85,7 @@ export default function QuickLogScreen() {
         const payload: CachedView = { ...snapshot, cachedAt: Date.now() };
         await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(payload));
       } catch {
-        // Best-effort cache; ignore write errors.
+        // best-effort
       }
     },
     [],
@@ -98,7 +121,6 @@ export default function QuickLogScreen() {
       const g = await refreshFromServer();
       if (g) setSide((cur) => cur ?? (g.nextSide === 'BOTH' ? 'LEFT' : g.nextSide));
     } catch (err) {
-      // Silent on startup if we already have cache; otherwise surface.
       if (!hadCache) {
         Alert.alert('טעינה נכשלה', err instanceof Error ? err.message : 'שגיאה לא ידועה');
       }
@@ -116,8 +138,6 @@ export default function QuickLogScreen() {
     try {
       await refreshFromServer();
     } catch (err) {
-      // If the user is offline, they likely already see the offline badge —
-      // skip the noisy alert. Surface only unexpected (server) errors.
       if (err instanceof ApiError) {
         Alert.alert('טעינה נכשלה', err.message);
       }
@@ -160,12 +180,7 @@ export default function QuickLogScreen() {
         const g = await refreshFromServer();
         finishOk(g?.nextSide);
       } catch (err) {
-        if (err instanceof ApiError) {
-          // Server said no — don't queue, surface the error.
-          throw err;
-        }
-        // Network error mid-request → fall back to queue so the user doesn't
-        // lose the entry. The queue will flush on the next reconnect tick.
+        if (err instanceof ApiError) throw err;
         await enqueue(payload);
         finishOk();
       }
@@ -179,83 +194,315 @@ export default function QuickLogScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-brand-50">
-        <ActivityIndicator color="#DB2777" />
+      <SafeAreaView style={s.loadingWrap} edges={['top']}>
+        <StatusBar style="dark" />
+        <ActivityIndicator color={PRIMARY} />
       </SafeAreaView>
     );
   }
 
+  const displayName = user?.displayName ?? 'אמא';
+
   return (
-    <SafeAreaView className="flex-1 bg-brand-50" edges={['top']}>
-      <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#DB2777" />}
+    <View style={s.root}>
+      <StatusBar style="light" />
+
+      {/* Photographic banner — sits behind all content */}
+      <ImageBackground
+        source={{ uri: BG_IMAGES[bgIdx] }}
+        style={s.banner}
+        resizeMode="cover"
       >
-        <View className="mb-2 flex-row items-center justify-between">
-          <Text className="text-2xl font-bold text-brand-700">היי {user?.displayName ?? 'אמא'} 👋</Text>
+        <View style={s.bannerOverlay} />
+      </ImageBackground>
+
+      <SafeAreaView style={s.safeArea} edges={['top']}>
+        {/* Header */}
+        <View style={s.header}>
+          <View>
+            <Text style={s.dateLabel}>
+              {new Date().toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </Text>
+            <Text style={s.greeting}>
+              בוקר טוב, <Text style={s.greetingAccent}>{displayName}</Text>
+            </Text>
+          </View>
           <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="יציאה">
-            <Text className="text-sm font-semibold text-brand-600">יציאה</Text>
+            <View style={s.avatar}>
+              <Text style={s.avatarText}>{displayName.charAt(0)}</Text>
+            </View>
           </Pressable>
         </View>
 
-        <View className="mb-3">
-          <OfflineBadge isOnline={isOnline} pendingCount={pending.length} flushing={flushing} />
-        </View>
+        {/* Offline badge */}
+        {(!isOnline || (flushing && pending.length > 0)) ? (
+          <View style={s.badgeWrap}>
+            <OfflineBadge isOnline={isOnline} pendingCount={pending.length} flushing={flushing} />
+          </View>
+        ) : null}
 
-        <View className="gap-4">
-          {guidance ? <SessionCard latest={latest} guidance={guidance} /> : null}
-          <DailySummary logs={todayLogs} />
-          {guidance?.tip ? <GuidanceTip tip={guidance.tip} /> : null}
+        {/* Main scroll */}
+        <ScrollView
+          style={s.scroll}
+          contentContainerStyle={s.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={PRIMARY}
+              colors={[PRIMARY]}
+            />
+          }
+        >
+          {/* Last + next feeding card */}
+          {guidance ? (
+            <View style={s.section}>
+              <SessionCard latest={latest} guidance={guidance} />
+            </View>
+          ) : null}
 
-          <View className="rounded-3xl bg-white p-5">
-            <Text className="text-xs font-semibold uppercase tracking-wide text-brand-600">מתי?</Text>
-            <View className="mt-2">
+          {/* Daily summary */}
+          {todayLogs.length > 0 && (
+            <View style={s.section}>
+              <DailySummary logs={todayLogs} />
+            </View>
+          )}
+
+          {/* Guidance tip */}
+          {guidance?.tip ? (
+            <View style={s.section}>
+              <GuidanceTip tip={guidance.tip} />
+            </View>
+          ) : null}
+
+          {/* Quick log card */}
+          <View style={[s.section, s.logCard]}>
+            <View style={s.logCardHeader}>
+              <Text style={s.logCardTitle}>תיעוד הנקה</Text>
+              <Text style={s.logCardTime}>
+                {new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </View>
+
+            {/* Time picker */}
+            <View style={s.logField}>
+              <Text style={s.logFieldLabel}>מתי?</Text>
               <StartTimePicker value={startTime} onChange={setStartTime} />
             </View>
 
-            <Text className="mt-5 text-xs font-semibold uppercase tracking-wide text-brand-600">צד</Text>
-            <View className="mt-2 flex-row gap-3">
-              {SIDES.map((s) => (
-                <SideButton
-                  key={s}
-                  side={s}
-                  selected={side === s}
-                  recommended={guidance?.nextSide === s}
-                  onPress={setSide}
-                />
-              ))}
+            {/* Side */}
+            <View style={s.logField}>
+              <Text style={s.logFieldLabel}>צד</Text>
+              <View style={s.sideRow}>
+                {SIDES.map((sv) => (
+                  <SideButton
+                    key={sv}
+                    side={sv}
+                    selected={side === sv}
+                    recommended={guidance?.nextSide === sv}
+                    onPress={setSide}
+                  />
+                ))}
+              </View>
             </View>
 
-            <Text className="mt-5 text-xs font-semibold uppercase tracking-wide text-brand-600">איכות</Text>
-            <View className="mt-2">
+            {/* Quality */}
+            <View style={s.logField}>
               <QualityRating value={qualityScore} onChange={setQualityScore} />
             </View>
 
+            {/* Save */}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="שמירת הנקה"
               onPress={onSubmit}
               disabled={submitting || !side}
-              className={`mt-5 items-center justify-center rounded-3xl py-5 ${
-                submitting || !side ? 'bg-brand-400' : 'bg-brand-600'
-              }`}
+              style={({ pressed }) => [
+                s.saveBtn,
+                (!side || submitting) && s.saveBtnDisabled,
+                pressed && { opacity: 0.85 },
+              ]}
             >
               {submitting ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text className="text-lg font-bold text-white">שמירת ההנקה</Text>
+                <>
+                  <Text style={s.saveArrow}>←</Text>
+                  <Text style={s.saveLabel}>שמירת ההנקה</Text>
+                  <View style={{ width: 18 }} />
+                </>
               )}
             </Pressable>
           </View>
 
-          <View>
-            <Text className="mb-1 px-1 text-xs font-semibold uppercase tracking-wide text-brand-600">
-              היסטוריה
-            </Text>
+          {/* History */}
+          <View style={s.historySection}>
+            <Text style={s.historySectionLabel}>היסטוריה</Text>
             <HistoryList logs={allLogs} />
           </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
+
+const CREAM = '#F4ECE2';
+const SURFACE = '#FBF6EE';
+const INK = '#2B1F1A';
+const INK_SOFT = '#6B5A50';
+const PRIMARY = '#C76A4A';
+
+const s = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: CREAM,
+  },
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: CREAM,
+  },
+  banner: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 260,
+  },
+  bannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(36,20,12,0.22)',
+  },
+  safeArea: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  dateLabel: {
+    fontSize: 11,
+    letterSpacing: 2,
+    color: 'rgba(255,255,255,0.65)',
+    marginBottom: 4,
+    textAlign: 'right',
+  },
+  greeting: {
+    fontFamily: 'serif',
+    fontSize: 26,
+    color: '#fff',
+    fontWeight: '500',
+    lineHeight: 32,
+    textAlign: 'right',
+  },
+  greetingAccent: {
+    color: '#EAD0BF',
+    fontStyle: 'italic',
+  },
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: SURFACE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontFamily: 'serif',
+    fontSize: 18,
+    color: PRIMARY,
+    fontWeight: '500',
+  },
+  badgeWrap: {
+    paddingHorizontal: 24,
+    marginBottom: 6,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 48,
+    paddingTop: 4,
+  },
+  section: {
+    marginBottom: 12,
+  },
+  logCard: {
+    backgroundColor: SURFACE,
+    borderRadius: 24,
+    padding: 22,
+  },
+  logCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  logCardTitle: {
+    fontFamily: 'serif',
+    fontSize: 20,
+    color: INK,
+    fontWeight: '500',
+  },
+  logCardTime: {
+    fontSize: 11,
+    color: INK_SOFT,
+  },
+  logField: {
+    marginBottom: 18,
+  },
+  logFieldLabel: {
+    fontSize: 10,
+    letterSpacing: 2,
+    color: INK_SOFT,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    textAlign: 'right',
+  },
+  sideRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  saveBtn: {
+    backgroundColor: PRIMARY,
+    borderRadius: 999,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  saveBtnDisabled: {
+    opacity: 0.55,
+  },
+  saveArrow: {
+    color: '#fff',
+    fontSize: 18,
+  },
+  saveLabel: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  historySection: {
+    marginTop: 8,
+  },
+  historySectionLabel: {
+    fontSize: 10,
+    letterSpacing: 2,
+    color: INK_SOFT,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+    paddingHorizontal: 2,
+    textAlign: 'right',
+  },
+});
