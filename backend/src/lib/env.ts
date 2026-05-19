@@ -25,6 +25,10 @@ const EnvSchema = z.object({
   PUBLIC_BASE_URL: z.string().url().optional(),
 
   FEEDING_INTERVAL_HOURS: z.coerce.number().positive().default(3),
+
+  // Shared secret for the cron endpoint that triggers reminder checks.
+  // Optional in dev; the endpoint returns 503 when missing in production.
+  CRON_SECRET: z.string().min(16).optional(),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
