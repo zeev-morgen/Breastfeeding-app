@@ -1,4 +1,5 @@
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import type { FeedingLog } from '@/lib/types';
 import { SIDE_LABEL, formatClock } from '@/lib/format';
 
@@ -82,9 +83,9 @@ function QualityBadge({ score }: { score: number }) {
   return <Text className="text-xs text-amber-500">{stars}</Text>;
 }
 
-function LogRow({ log }: { log: FeedingLog }) {
-  return (
-    <View className="mb-2 flex-row items-center gap-3 rounded-2xl bg-white p-4">
+function LogRow({ log, onPress }: { log: FeedingLog; onPress?: (log: FeedingLog) => void }) {
+  const content = (
+    <>
       <View className={`h-12 w-12 items-center justify-center rounded-2xl ${SIDE_BG[log.side]}`}>
         <View className={`h-2 w-2 rounded-full ${SIDE_DOT[log.side]}`} />
       </View>
@@ -100,7 +101,26 @@ function LogRow({ log }: { log: FeedingLog }) {
           <QualityBadge score={log.qualityScore} />
         </View>
       </View>
-    </View>
+      {onPress ? <Text className="text-xs text-gray-300">›</Text> : null}
+    </>
+  );
+
+  if (!onPress) {
+    return <View className="mb-2 flex-row items-center gap-3 rounded-2xl bg-white p-4">{content}</View>;
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`עריכת הנקה ${SIDE_LABEL[log.side]} בשעה ${formatClock(log.startTime)}`}
+      onPress={() => {
+        Haptics.selectionAsync();
+        onPress(log);
+      }}
+      className="mb-2 flex-row items-center gap-3 rounded-2xl bg-white p-4"
+    >
+      {content}
+    </Pressable>
   );
 }
 
@@ -119,9 +139,10 @@ function DayHeader({ group }: { group: DayGroup }) {
 interface Props {
   logs: FeedingLog[];
   emptyMessage?: string;
+  onPressLog?: (log: FeedingLog) => void;
 }
 
-export function HistoryList({ logs, emptyMessage = 'עדיין אין הנקות מתועדות.' }: Props) {
+export function HistoryList({ logs, emptyMessage = 'עדיין אין הנקות מתועדות.', onPressLog }: Props) {
   if (logs.length === 0) {
     return (
       <View className="items-center px-4 py-6">
@@ -136,7 +157,7 @@ export function HistoryList({ logs, emptyMessage = 'עדיין אין הנקות
         <View key={g.dateKey}>
           <DayHeader group={g} />
           {g.logs.map((log) => (
-            <LogRow key={log.id} log={log} />
+            <LogRow key={log.id} log={log} onPress={onPressLog} />
           ))}
         </View>
       ))}

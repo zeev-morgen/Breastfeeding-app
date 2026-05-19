@@ -61,6 +61,15 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     return body as T;
 }
 
+export interface UpdateLogPayload {
+  side?: 'LEFT' | 'RIGHT' | 'BOTH';
+  qualityScore?: number;
+  durationMin?: number;
+  startTime?: string;
+  endTime?: string | null;
+  notes?: string | null;
+}
+
 export const api = {
   login: (email: string, password: string) =>
     request<{ token: string; user: AuthUser }>('/api/auth/login', {
@@ -80,6 +89,17 @@ export const api = {
     request<{ log: FeedingLog; guidance: Guidance }>('/api/logs', {
       method: 'POST',
       body: JSON.stringify(input),
+    }),
+
+  updateLog: (id: string, input: UpdateLogPayload) =>
+    request<{ log: FeedingLog; guidance: Guidance }>(`/api/logs/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+
+  deleteLog: (id: string) =>
+    request<null>(`/api/logs/${id}`, {
+      method: 'DELETE',
     }),
 
   getLatest: () => request<{ log: FeedingLog | null; guidance: Guidance }>('/api/logs/latest'),

@@ -13,6 +13,7 @@ import { DailySummary } from '@/components/DailySummary';
 import { StartTimePicker } from '@/components/StartTimePicker';
 import { HistoryList } from '@/components/HistoryList';
 import { OfflineBadge } from '@/components/OfflineBadge';
+import { EditLogSheet } from '@/components/EditLogSheet';
 import { useAuth } from '@/lib/store';
 import { isToday } from '@/lib/format';
 import { pendingToLog, useOfflineQueue } from '@/lib/offline-queue';
@@ -33,6 +34,8 @@ export default function QuickLogScreen() {
   const pending = useOfflineQueue((s) => s.pending);
   const flushing = useOfflineQueue((s) => s.flushing);
   const enqueue = useOfflineQueue((s) => s.enqueue);
+  const updatePending = useOfflineQueue((s) => s.updatePending);
+  const removePending = useOfflineQueue((s) => s.removePending);
   const setOnline = useOfflineQueue((s) => s.setOnline);
 
   const [latest, setLatest] = useState<FeedingLog | null>(null);
@@ -45,6 +48,8 @@ export default function QuickLogScreen() {
   const [side, setSide] = useState<Side | null>(null);
   const [qualityScore, setQualityScore] = useState(4);
   const [startTime, setStartTime] = useState<Date | null>(null);
+
+  const [editing, setEditing] = useState<FeedingLog | null>(null);
 
   // Pending entries are server-unaware — synthesize FeedingLog rows so the
   // home screen and inline history reflect them immediately. Server-confirmed
@@ -144,11 +149,14 @@ export default function QuickLogScreen() {
     setSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+    // Always anchor to the tap moment so offline-queued entries don't drift to
+    // the sync time when they reach the server.
+    const effectiveStart = (startTime ?? new Date()).toISOString();
     const payload = {
       side,
       qualityScore,
       durationMin: 0,
-      ...(startTime ? { startTime: startTime.toISOString() } : {}),
+      startTime: effectiveStart,
     };
 
     const resetForm = () => {
@@ -190,6 +198,54 @@ export default function QuickLogScreen() {
       setSubmitting(false);
     }
   }, [side, qualityScore, startTime, isOnline, enqueue, setOnline, refreshFromServer]);
+
+  const handleSaveEdit = useCallback(
+    async (log: FeedingLog, updates: { side: Side; qualityScore: number; startTime: string }) => {
+      if (log.pending) {
+        // Edit lives entirely in the local queue until the flush eventually
+        // posts the corrected payload.
+        await updatePending(log.id, updates);
+        return;
+      }
+      // Optimistic UI: apply the change locally, then send to the server. If
+      // the request fails we surface the error and refresh to reconcile.
+      const optimistic: FeedingLog = { ...log, ...updates, updatedAt: new Date().toISOString() };
+      setRecentLogs((prev) => prev.map((l) => (l.id === log.id ? optimistic : l)));
+      setLatest((prev) => (prev?.id === log.id ? optimistic : prev));
+      try {
+        await api.updateLog(log.id, updates);
+        await refreshFromServer();
+      } catch (err) {
+        // Roll back and rethrow so the modal surfaces the error.
+        setRecentLogs((prev) => prev.map((l) => (l.id === log.id ? log : l)));
+        setLatest((prev) => (prev?.id === log.id ? log : prev));
+        throw err;
+      }
+    },
+    [updatePending, refreshFromServer],
+  );
+
+  const handleDeleteLog = useCallback(
+    async (log: FeedingLog) => {
+      if (log.pending) {
+        await removePending(log.id);
+        return;
+      }
+      const prevList = recentLogs;
+      const prevLatest = latest;
+      setRecentLogs((prev) => prev.filter((l) => l.id !== log.id));
+      setLatest((prev) => (prev?.id === log.id ? null : prev));
+      try {
+        await api.deleteLog(log.id);
+        await refreshFromServer();
+      } catch (err) {
+        setRecentLogs(prevList);
+        setLatest(prevLatest);
+        throw err;
+      }
+    },
+    [removePending, recentLogs, latest, refreshFromServer],
+  );
 
   if (loading) {
     return (
@@ -266,10 +322,18 @@ export default function QuickLogScreen() {
             <Text className="mb-1 px-1 text-xs font-semibold uppercase tracking-wide text-brand-600">
               היסטוריה
             </Text>
-            <HistoryList logs={allLogs} />
+            <HistoryList logs={allLogs} onPressLog={setEditing} />
           </View>
         </View>
       </ScrollView>
+
+      <EditLogSheet
+        log={editing}
+        visible={editing !== null}
+        onClose={() => setEditing(null)}
+        onSave={(updates) => (editing ? handleSaveEdit(editing, updates) : Promise.resolve())}
+        onDelete={() => (editing ? handleDeleteLog(editing) : Promise.resolve())}
+      />
     </SafeAreaView>
   );
 }
