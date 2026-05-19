@@ -8,6 +8,7 @@ import pinoHttp from 'pino-http';
 import { authRouter } from './routes/auth.routes';
 import { logsRouter } from './routes/logs.routes';
 import { whatsappRouter } from './routes/whatsapp.routes';
+import { cronRouter } from './routes/cron.routes';
 import { errorHandler } from './middleware/error.middleware';
 import { logger } from './lib/logger';
 
@@ -30,6 +31,7 @@ export function createApp() {
   app.use(express.json({ limit: '64kb' }));
   app.use('/api/auth', authRouter);
   app.use('/api/logs', logsRouter);
+  app.use('/internal/cron', cronRouter);
 
   app.use((req, res) => {
     res.status(404).json({ error: 'NOT_FOUND', message: `Route ${req.method} ${req.path} not found` });
