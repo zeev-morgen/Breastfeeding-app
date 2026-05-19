@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import type { FeedingLog } from '@/lib/types';
 import { SIDE_LABEL, formatClock } from '@/lib/format';
 
@@ -75,13 +76,13 @@ function QualityDots({ score }: { score: number }) {
   );
 }
 
-function LogRow({ log }: { log: FeedingLog }) {
-  return (
-    <View style={s.logRow}>
+function LogRow({ log, onPress }: { log: FeedingLog; onPress?: (log: FeedingLog) => void }) {
+  const content = (
+    <>
       {/* Time */}
       <Text style={s.logTime}>{formatClock(log.startTime)}</Text>
       <View style={s.logDivider} />
-      {/* Side + note */}
+      {/* Side + pending tag */}
       <View style={s.logBody}>
         <View style={s.logTitleRow}>
           <Text style={s.logSide}>{SIDE_LABEL[log.side]}</Text>
@@ -92,7 +93,25 @@ function LogRow({ log }: { log: FeedingLog }) {
       </View>
       {/* Quality dots */}
       <QualityDots score={log.qualityScore} />
-    </View>
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={s.logRow}>{content}</View>;
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`עריכת הנקה ${SIDE_LABEL[log.side]} בשעה ${formatClock(log.startTime)}`}
+      onPress={() => {
+        Haptics.selectionAsync();
+        onPress(log);
+      }}
+      style={({ pressed }) => [s.logRow, pressed && { opacity: 0.7 }]}
+    >
+      {content}
+    </Pressable>
   );
 }
 
@@ -111,9 +130,10 @@ function DayHeader({ group }: { group: DayGroup }) {
 interface Props {
   logs: FeedingLog[];
   emptyMessage?: string;
+  onPressLog?: (log: FeedingLog) => void;
 }
 
-export function HistoryList({ logs, emptyMessage = 'עדיין אין הנקות מתועדות.' }: Props) {
+export function HistoryList({ logs, emptyMessage = 'עדיין אין הנקות מתועדות.', onPressLog }: Props) {
   if (logs.length === 0) {
     return (
       <View style={s.emptyWrap}>
@@ -128,7 +148,7 @@ export function HistoryList({ logs, emptyMessage = 'עדיין אין הנקות
         <View key={g.dateKey}>
           <DayHeader group={g} />
           {g.logs.map((log) => (
-            <LogRow key={log.id} log={log} />
+            <LogRow key={log.id} log={log} onPress={onPressLog} />
           ))}
         </View>
       ))}

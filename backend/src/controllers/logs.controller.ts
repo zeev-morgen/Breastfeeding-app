@@ -1,8 +1,9 @@
 import type { RequestHandler } from 'express';
 import { prisma } from '../lib/prisma';
-import { CreateLogSchema } from '../schemas/log.schema';
+import { CreateLogSchema, UpdateLogSchema } from '../schemas/log.schema';
 import { buildGuidance } from '../services/guidance.service';
 import { env } from '../lib/env';
+import { notFound } from '../lib/errors';
 
 async function intervalHoursForUser(userId: string): Promise<number> {
   const user = await prisma.user.findUnique({
@@ -58,4 +59,46 @@ export const listLogs: RequestHandler = async (req, res) => {
     take: limit,
   });
   res.json({ logs });
+};
+
+export const updateLog: RequestHandler = async (req, res) => {
+  const userId = req.userId!;
+  const id = req.params.id!;
+  const input = UpdateLogSchema.parse(req.body);
+
+  const existing = await prisma.feedingLog.findFirst({ where: { id, userId } });
+  if (!existing) throw notFound('Log not found');
+
+  // When startTime changes and endTime wasn't explicitly set, recompute endTime
+  // from the (new) start + duration so the row stays internally consistent.
+  const nextStart = input.startTime ?? existing.startTime;
+  const nextDuration = input.durationMin ?? existing.durationMin;
+  let nextEnd: Date | null | undefined = input.endTime;
+  if (nextEnd === undefined && (input.startTime || input.durationMin !== undefined)) {
+    nextEnd = nextDuration > 0 ? new Date(nextStart.getTime() + nextDuration * 60_000) : null;
+  }
+
+  const log = await prisma.feedingLog.update({
+    where: { id },
+    data: {
+      ...(input.side !== undefined ? { side: input.side } : {}),
+      ...(input.qualityScore !== undefined ? { qualityScore: input.qualityScore } : {}),
+      ...(input.durationMin !== undefined ? { durationMin: input.durationMin } : {}),
+      ...(input.startTime !== undefined ? { startTime: input.startTime } : {}),
+      ...(nextEnd !== undefined ? { endTime: nextEnd } : {}),
+      ...(input.notes !== undefined ? { notes: input.notes } : {}),
+    },
+  });
+
+  const intervalHours = await intervalHoursForUser(userId);
+  res.json({ log, guidance: buildGuidance(log, intervalHours) });
+};
+
+export const deleteLog: RequestHandler = async (req, res) => {
+  const userId = req.userId!;
+  const id = req.params.id!;
+  const existing = await prisma.feedingLog.findFirst({ where: { id, userId } });
+  if (!existing) throw notFound('Log not found');
+  await prisma.feedingLog.delete({ where: { id } });
+  res.status(204).end();
 };
