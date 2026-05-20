@@ -9,8 +9,10 @@ import {
   HELP_MESSAGE,
   LOW_CONFIDENCE_MESSAGE,
   UNKNOWN_MESSAGE,
+  formatDeletedConfirmation,
   formatLoggedConfirmation,
   formatStatusMessage,
+  formatUpdatedConfirmation,
 } from '../services/whatsapp.service';
 
 const MIN_LOG_CONFIDENCE = 0.5;
@@ -99,20 +101,24 @@ export const whatsappWebhook: RequestHandler = async (req, res) => {
     }
 
     case 'LOG_FEEDING': {
-      // Need at least side + duration to record a usable session.
-      if (parsed.side == null || parsed.durationMin == null || parsed.confidence < MIN_LOG_CONFIDENCE) {
+      // Duration is OPTIONAL — the app no longer surfaces it, so the bot
+      // mirrors that behaviour: a log without duration is still valid and
+      // simply stored as 0. We only refuse when the side or the intent
+      // itself is uncertain.
+      if (parsed.side == null || parsed.confidence < MIN_LOG_CONFIDENCE) {
         sendTwiml(res, LOW_CONFIDENCE_MESSAGE(parsed));
         return;
       }
       const startTime = new Date();
+      const durationMin = parsed.durationMin ?? 0;
       const log = await prisma.feedingLog.create({
         data: {
           userId: user.id,
           side: parsed.side,
-          durationMin: parsed.durationMin,
-          qualityScore: parsed.qualityScore ?? 3,
+          durationMin,
+          qualityScore: parsed.qualityScore ?? 4,
           startTime,
-          endTime: new Date(startTime.getTime() + parsed.durationMin * 60_000),
+          endTime: durationMin > 0 ? new Date(startTime.getTime() + durationMin * 60_000) : null,
           notes: parsed.notes,
           source: 'WHATSAPP',
           rawMessage: text,
@@ -122,9 +128,57 @@ export const whatsappWebhook: RequestHandler = async (req, res) => {
       return;
     }
 
+    case 'UPDATE_LAST': {
+      const latest = await prisma.feedingLog.findFirst({
+        where: { userId: user.id },
+        orderBy: { startTime: 'desc' },
+      });
+      if (!latest) {
+        sendTwiml(res, 'אין הנקה לעדכן עדיין.');
+        return;
+      }
+      // Only touch fields the user actually mentioned; everything else
+      // stays as-is so a quick "תשני לימין" doesn't reset the quality.
+      const updated = await prisma.feedingLog.update({
+        where: { id: latest.id },
+        data: {
+          ...(parsed.side != null ? { side: parsed.side } : {}),
+          ...(parsed.qualityScore != null ? { qualityScore: parsed.qualityScore } : {}),
+          ...(parsed.durationMin != null
+            ? {
+                durationMin: parsed.durationMin,
+                endTime:
+                  parsed.durationMin > 0
+                    ? new Date(latest.startTime.getTime() + parsed.durationMin * 60_000)
+                    : null,
+              }
+            : {}),
+          ...(parsed.notes != null ? { notes: parsed.notes } : {}),
+        },
+      });
+      sendTwiml(res, formatUpdatedConfirmation(updated));
+      return;
+    }
+
+    case 'DELETE_LAST': {
+      const latest = await prisma.feedingLog.findFirst({
+        where: { userId: user.id },
+        orderBy: { startTime: 'desc' },
+      });
+      if (!latest) {
+        sendTwiml(res, 'אין הנקה למחיקה.');
+        return;
+      }
+      await prisma.feedingLog.delete({ where: { id: latest.id } });
+      sendTwiml(res, formatDeletedConfirmation(latest));
+      return;
+    }
+
     case 'UNKNOWN':
     default:
-      sendTwiml(res, UNKNOWN_MESSAGE);
+      // Prefer a Claude-authored, contextual reply when available; fall back
+      // to the static template only if the model didn't supply one.
+      sendTwiml(res, parsed.reply && parsed.reply.length > 0 ? parsed.reply : UNKNOWN_MESSAGE);
       return;
   }
 };

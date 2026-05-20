@@ -57,6 +57,22 @@ export function formatLoggedConfirmation(log: FeedingLog, guidance: Guidance): s
     .join('\n');
 }
 
+export function formatUpdatedConfirmation(log: FeedingLog): string {
+  return [
+    `✏️ עודכנה ההנקה האחרונה (${formatClock(log.startTime)}):`,
+    `• צד: ${SIDE_LABEL[log.side]}`,
+    `• איכות: ${log.qualityScore}/5`,
+    log.durationMin > 0 ? `• משך: ${log.durationMin} דק׳` : null,
+    log.notes ? `• הערות: ${log.notes}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+export function formatDeletedConfirmation(log: FeedingLog): string {
+  return `🗑️ נמחקה הנקת ${SIDE_LABEL[log.side]} מהשעה ${formatClock(log.startTime)}.`;
+}
+
 export const HELP_MESSAGE = [
   '👶 *LactaSync* — לתיעוד הנקה כתבי הודעה חופשית:',
   '• "20 דקות ימין, אחיזה טובה"',
