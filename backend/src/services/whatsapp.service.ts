@@ -21,7 +21,14 @@ function formatRelative(when: Date, now = new Date()): string {
 }
 
 function formatClock(when: Date): string {
-  return when.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return when.toLocaleTimeString('he-IL', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    // Render runs in UTC; force Israel time so the displayed clock matches
+    // what the mom sees in the mobile app (which uses the device timezone).
+    timeZone: 'Asia/Jerusalem',
+  });
 }
 
 export function formatStatusMessage(latest: FeedingLog | null, guidance: Guidance): string {
