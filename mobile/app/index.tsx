@@ -26,6 +26,7 @@ import { HistoryList } from '@/components/HistoryList';
 import { OfflineBadge } from '@/components/OfflineBadge';
 import { EditLogSheet } from '@/components/EditLogSheet';
 import { FreeTextLogSheet } from '@/components/FreeTextLogSheet';
+import { PhotoGallery } from '@/components/PhotoGallery';
 import { useAuth } from '@/lib/store';
 import { isToday } from '@/lib/format';
 import { pendingToLog, useOfflineQueue } from '@/lib/offline-queue';
@@ -352,6 +353,11 @@ export default function QuickLogScreen() {
               <GuidanceTip tip={guidance.tip} />
             </View>
           ) : null}
+
+          {/* Photo gallery — silently hidden when the gallery folder is empty */}
+          <View style={s.section}>
+            <PhotoGallery />
+          </View>
 
           {/* Quick log card */}
           <View style={[s.section, s.logCard]}>
