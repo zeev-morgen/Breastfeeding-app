@@ -46,3 +46,11 @@ export const UpdateLogSchema = z
   .refine((v) => Object.keys(v).length > 0, { message: 'No fields to update' });
 
 export type UpdateLogInput = z.infer<typeof UpdateLogSchema>;
+
+export const LogFromTextSchema = z
+  .object({
+    text: z.string().trim().min(1).max(1000),
+  })
+  .strict();
+
+export type LogFromTextInput = z.infer<typeof LogFromTextSchema>;

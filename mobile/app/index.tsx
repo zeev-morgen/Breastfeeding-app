@@ -25,6 +25,7 @@ import { StartTimePicker } from '@/components/StartTimePicker';
 import { HistoryList } from '@/components/HistoryList';
 import { OfflineBadge } from '@/components/OfflineBadge';
 import { EditLogSheet } from '@/components/EditLogSheet';
+import { FreeTextLogSheet } from '@/components/FreeTextLogSheet';
 import { useAuth } from '@/lib/store';
 import { isToday } from '@/lib/format';
 import { pendingToLog, useOfflineQueue } from '@/lib/offline-queue';
@@ -69,6 +70,7 @@ export default function QuickLogScreen() {
   const [startTime, setStartTime] = useState<Date | null>(null);
 
   const [editing, setEditing] = useState<FeedingLog | null>(null);
+  const [freeTextOpen, setFreeTextOpen] = useState(false);
 
   // Rotate through background images
   const [bgIdx, setBgIdx] = useState(0);
@@ -355,9 +357,17 @@ export default function QuickLogScreen() {
           <View style={[s.section, s.logCard]}>
             <View style={s.logCardHeader}>
               <Text style={s.logCardTitle}>תיעוד הנקה</Text>
-              <Text style={s.logCardTime}>
-                {new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="תיעוד חופשי"
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setFreeTextOpen(true);
+                }}
+                style={({ pressed }) => [s.freeTextLink, pressed && { opacity: 0.7 }]}
+              >
+                <Text style={s.freeTextLinkLabel}>תיעוד חופשי ✨</Text>
+              </Pressable>
             </View>
 
             {/* Time picker */}
@@ -424,6 +434,28 @@ export default function QuickLogScreen() {
           onClose={() => setEditing(null)}
           onSave={(updates) => (editing ? handleSaveEdit(editing, updates) : Promise.resolve())}
           onDelete={() => (editing ? handleDeleteLog(editing) : Promise.resolve())}
+        />
+
+        <FreeTextLogSheet
+          visible={freeTextOpen}
+          onClose={() => setFreeTextOpen(false)}
+          onLogged={async () => {
+            // Server already created the log; refresh so it shows up.
+            try {
+              await refreshFromServer();
+            } catch {
+              // Silent — log is already saved on the server.
+            }
+          }}
+          onConfirmInForm={(parsed) => {
+            // Low-confidence parse: prefill the regular form so the user
+            // can verify side / quality / duration before saving.
+            if (parsed.side && parsed.side !== 'BOTH') setSide(parsed.side);
+            if (parsed.qualityScore != null) setQualityScore(parsed.qualityScore);
+            // We don't surface durationMin in the visible form (the app dropped
+            // duration tracking), so we silently ignore that field — it'll be
+            // saved as 0 just like every other manual entry.
+          }}
         />
       </SafeAreaView>
     </View>
@@ -537,6 +569,19 @@ const s = StyleSheet.create({
   logCardTime: {
     fontSize: 11,
     color: INK_SOFT,
+  },
+  freeTextLink: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#F4ECE2',
+    borderWidth: 1,
+    borderColor: '#E6DBCB',
+  },
+  freeTextLinkLabel: {
+    fontSize: 12,
+    color: PRIMARY,
+    fontWeight: '600',
   },
   logField: {
     marginBottom: 18,

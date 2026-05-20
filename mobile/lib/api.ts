@@ -70,6 +70,23 @@ export interface UpdateLogPayload {
   notes?: string | null;
 }
 
+export interface ParsedFreeText {
+  intent: 'LOG_FEEDING' | 'STATUS' | 'HELP' | 'UNKNOWN';
+  side: 'LEFT' | 'RIGHT' | 'BOTH' | null;
+  durationMin: number | null;
+  qualityScore: number | null;
+  notes: string | null;
+  confidence: number;
+}
+
+export type LogFromTextResponse =
+  | { status: 'OK'; log: FeedingLog; guidance: Guidance; parsed: ParsedFreeText }
+  | {
+      status: 'NEEDS_CONFIRMATION';
+      parsed: ParsedFreeText;
+      reason: 'NOT_A_LOG' | 'LOW_CONFIDENCE';
+    };
+
 export const api = {
   login: (email: string, password: string) =>
     request<{ token: string; user: AuthUser }>('/api/auth/login', {
@@ -89,6 +106,12 @@ export const api = {
     request<{ log: FeedingLog; guidance: Guidance }>('/api/logs', {
       method: 'POST',
       body: JSON.stringify(input),
+    }),
+
+  createLogFromText: (text: string) =>
+    request<LogFromTextResponse>('/api/logs/from-text', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
     }),
 
   updateLog: (id: string, input: UpdateLogPayload) =>

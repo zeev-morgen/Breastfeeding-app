@@ -1,9 +1,12 @@
 import type { RequestHandler } from 'express';
 import { prisma } from '../lib/prisma';
-import { CreateLogSchema, UpdateLogSchema } from '../schemas/log.schema';
+import { CreateLogSchema, LogFromTextSchema, UpdateLogSchema } from '../schemas/log.schema';
 import { buildGuidance } from '../services/guidance.service';
+import { parseWhatsAppMessage } from '../services/claude.service';
 import { env } from '../lib/env';
 import { notFound } from '../lib/errors';
+
+const FREE_TEXT_MIN_CONFIDENCE = 0.5;
 
 async function intervalHoursForUser(userId: string): Promise<number> {
   const user = await prisma.user.findUnique({
@@ -101,4 +104,55 @@ export const deleteLog: RequestHandler = async (req, res) => {
   if (!existing) throw notFound('Log not found');
   await prisma.feedingLog.delete({ where: { id } });
   res.status(204).end();
+};
+
+/**
+ * POST /api/logs/from-text — accept a free-text Hebrew/English message,
+ * route it through Claude's parser, and either create the log (when the
+ * extraction is confident) or return the parsed values so the client can
+ * surface a confirmation step.
+ *
+ * Response shape:
+ *   { status: 'OK', log, guidance, parsed }                — log created
+ *   { status: 'NEEDS_CONFIRMATION', parsed, reason }       — client should
+ *                                                            prompt the user
+ */
+export const createLogFromText: RequestHandler = async (req, res) => {
+  const { text } = LogFromTextSchema.parse(req.body);
+  const userId = req.userId!;
+
+  const parsed = await parseWhatsAppMessage(text);
+
+  if (parsed.intent !== 'LOG_FEEDING') {
+    res.json({ status: 'NEEDS_CONFIRMATION', parsed, reason: 'NOT_A_LOG' });
+    return;
+  }
+  if (!parsed.side || parsed.confidence < FREE_TEXT_MIN_CONFIDENCE) {
+    res.json({ status: 'NEEDS_CONFIRMATION', parsed, reason: 'LOW_CONFIDENCE' });
+    return;
+  }
+
+  const startTime = new Date();
+  const durationMin = parsed.durationMin ?? 0;
+  const log = await prisma.feedingLog.create({
+    data: {
+      userId,
+      side: parsed.side,
+      qualityScore: parsed.qualityScore ?? 4,
+      durationMin,
+      startTime,
+      endTime: durationMin > 0 ? new Date(startTime.getTime() + durationMin * 60_000) : null,
+      notes: parsed.notes,
+      source: 'APP',
+      rawMessage: text,
+    },
+  });
+
+  const intervalHours = await intervalHoursForUser(userId);
+  res.status(201).json({
+    status: 'OK',
+    log,
+    guidance: buildGuidance(log, intervalHours),
+    parsed,
+  });
 };
