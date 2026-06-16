@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fdf4f8"/>
+      <stop offset="1" stop-color="#eef8f6"/>
+    </linearGradient>
+    <linearGradient id="hdr" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#e26d8a"/>
+      <stop offset="1" stop-color="#2b9d96"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#1c2b3a" flood-opacity="0.10"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#bg)"/>
+
+  <!-- Header -->
+  <rect x="60" y="40" width="1160" height="92" rx="18" fill="url(#hdr)" filter="url(#shadow)"/>
+  <text x="1192" y="88" text-anchor="end" font-size="40" font-weight="700" fill="#ffffff">🍼 LactaSync — סיכום השינויים</text>
+  <text x="1192" y="118" text-anchor="end" font-size="19" fill="#ffffff" opacity="0.92">בוט הוואטסאפ + האפליקציה · יוני 2026</text>
+
+  <!-- ===== Card 1 (top-right) ===== -->
+  <g filter="url(#shadow)">
+    <rect x="660" y="158" width="560" height="232" rx="18" fill="#ffffff"/>
+    <rect x="1208" y="158" width="12" height="232" rx="6" fill="#e26d8a"/>
+  </g>
+  <text x="1186" y="206" text-anchor="end" font-size="26" font-weight="700" fill="#c2475f">⏱️ מרווח הנקה דינמי</text>
+  <text x="1186" y="252" text-anchor="end" font-size="20" fill="#37474f">חישוב לפי 72 ÷ מספר ההנקות ב-3 ימים</text>
+  <text x="1186" y="290" text-anchor="end" font-size="20" fill="#37474f">מינימום 6 הנקות · חסום בין 1.5 ל-4 שעות</text>
+  <text x="1186" y="328" text-anchor="end" font-size="20" fill="#37474f">חל גם בבוט וגם באפליקציה</text>
+  <text x="1186" y="366" text-anchor="end" font-size="20" fill="#37474f">ברירת מחדל חכמה כשאין מספיק היסטוריה</text>
+
+  <!-- ===== Card 2 (top-left) ===== -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="158" width="560" height="232" rx="18" fill="#ffffff"/>
+    <rect x="60" y="158" width="12" height="232" rx="6" fill="#2b9d96"/>
+  </g>
+  <text x="586" y="206" text-anchor="end" font-size="26" font-weight="700" fill="#1f8a83">📊 סיכום יומי בוואטסאפ</text>
+  <text x="586" y="252" text-anchor="end" font-size="20" fill="#37474f">נשלח כל יום ב-22:00 (שעון ישראל)</text>
+  <text x="586" y="290" text-anchor="end" font-size="20" fill="#37474f">סה״כ הנקות, דקות, איכות ופילוח לפי צד</text>
+  <text x="586" y="328" text-anchor="end" font-size="20" fill="#37474f">פירוט כל הנקה + ההנקה הבאה המומלצת</text>
+  <text x="586" y="366" text-anchor="end" font-size="20" fill="#37474f">סקדיולר פנימי, ללא תלות חיצונית</text>
+
+  <!-- ===== Card 3 (bottom-right) ===== -->
+  <g filter="url(#shadow)">
+    <rect x="660" y="414" width="560" height="232" rx="18" fill="#ffffff"/>
+    <rect x="1208" y="414" width="12" height="232" rx="6" fill="#f0a13b"/>
+  </g>
+  <text x="1186" y="462" text-anchor="end" font-size="26" font-weight="700" fill="#cf7d18">💬 דיווח חכם בעברית</text>
+  <text x="1186" y="508" text-anchor="end" font-size="20" fill="#37474f">כל תגובות הבוט עברו לעברית</text>
+  <text x="1186" y="546" text-anchor="end" font-size="20" fill="#37474f">"שמאל" לבד מספיק כדי לתעד</text>
+  <text x="1186" y="584" text-anchor="end" font-size="20" fill="#37474f">"לפני 15 דק" נרשם בזמן הנכון אחורה</text>
+  <text x="1186" y="622" text-anchor="end" font-size="20" fill="#37474f">ברירות מחדל: 15 דקות · איכות 4</text>
+
+  <!-- ===== Card 4 (bottom-left) ===== -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="414" width="560" height="232" rx="18" fill="#ffffff"/>
+    <rect x="60" y="414" width="12" height="232" rx="6" fill="#6c79d6"/>
+  </g>
+  <text x="586" y="462" text-anchor="end" font-size="26" font-weight="700" fill="#4956bf">🛡️ חיזוק ואמינות (סקירת קוד)</text>
+  <text x="586" y="508" text-anchor="end" font-size="20" fill="#37474f">ניתוח ה-AI עמיד לשדות חסרים</text>
+  <text x="586" y="546" text-anchor="end" font-size="20" fill="#37474f">חסימת זמנים חריגים במקום כשל</text>
+  <text x="586" y="584" text-anchor="end" font-size="20" fill="#37474f">"מומלץ עכשיו" כשזמן ההנקה כבר עבר</text>
+  <text x="586" y="622" text-anchor="end" font-size="20" fill="#37474f">15 בדיקות עוברות · build תקין</text>
+
+  <!-- Footer -->
+  <text x="1220" y="690" text-anchor="end" font-size="16" fill="#7a8a99">ניתוח כוונה: Anthropic Claude · ענף: claude/youthful-ptolemy-v0pht7</text>
+  <text x="60" y="690" text-anchor="start" font-size="16" fill="#7a8a99">4 קומיטים · backend בלבד</text>
+</svg>
