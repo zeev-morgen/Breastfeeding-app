@@ -53,9 +53,14 @@ describe('computeDynamicIntervalHours', () => {
     // 36 feedings → every 2 hours.
     expect(computeDynamicIntervalHours(36, 3)).toBe(2);
   });
-  it('falls back to the configured interval when there is no recent history', () => {
+  it('falls back when there is too little history (< 6 feedings)', () => {
     expect(computeDynamicIntervalHours(0, 3)).toBe(3);
-    expect(computeDynamicIntervalHours(-1, 2.5)).toBe(2.5);
+    expect(computeDynamicIntervalHours(1, 3)).toBe(3); // would be 72h raw — use fallback instead
+    expect(computeDynamicIntervalHours(5, 2.5)).toBe(2.5);
+  });
+  it('clamps the dynamic result to a sane range', () => {
+    expect(computeDynamicIntervalHours(6, 3)).toBe(4); // 72/6=12 → clamp to max 4
+    expect(computeDynamicIntervalHours(72, 3)).toBe(1.5); // 72/72=1 → clamp to min 1.5
   });
 });
 

@@ -7,13 +7,23 @@ import { logger } from '../lib/logger';
  * Structured shape extracted from free-text WhatsApp messages.
  * `intent` lets us route status/help queries without a separate NLU pass.
  */
+/** Upper bound for a relative-time report (24h). Larger values are clamped, not rejected. */
+const MAX_STARTED_MINUTES_AGO = 1440;
+
 export const ParsedMessageSchema = z.object({
   intent: z.enum(['LOG_FEEDING', 'STATUS', 'HELP', 'UNKNOWN']),
   side: z.enum(['LEFT', 'RIGHT', 'BOTH']).nullable(),
   durationMin: z.number().int().min(0).max(180).nullable(),
   qualityScore: z.number().int().min(1).max(5).nullable(),
   // How long ago the feeding STARTED, in minutes (e.g. "לפני 15 דק" → 15). Null = now.
-  startedMinutesAgo: z.number().int().min(0).max(1440).nullable(),
+  // Optional + clamped so a missing field or an out-of-range value never fails the whole parse.
+  startedMinutesAgo: z
+    .number()
+    .int()
+    .nullable()
+    .optional()
+    .default(null)
+    .transform((v) => (v == null ? null : Math.max(0, Math.min(v, MAX_STARTED_MINUTES_AGO)))),
   notes: z.string().max(500).nullable(),
   // Confidence in the extraction (0-1). Below 0.5 we ask the user to confirm.
   confidence: z.number().min(0).max(1),

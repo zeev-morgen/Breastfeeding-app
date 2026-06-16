@@ -22,15 +22,24 @@ const TIPS_LOW_QUALITY: readonly string[] = [
  */
 export const DYNAMIC_INTERVAL_WINDOW_HOURS = 72;
 
+/** Minimum feedings in the window before we trust the dynamic estimate. */
+export const MIN_FEEDINGS_FOR_DYNAMIC = 6;
+
+/** Sane bounds for the personalized interval, in hours. */
+export const MIN_DYNAMIC_INTERVAL_HOURS = 1.5;
+export const MAX_DYNAMIC_INTERVAL_HOURS = 4;
+
 /**
  * Personalized feeding interval: spread the last 3 days' feedings evenly across
- * the 72h window → 72 / (number of feedings in the window). With no recent
- * history to learn from we fall back to `fallbackHours` (the user's configured
- * interval, or the global default).
+ * the 72h window → 72 / (number of feedings in the window). With too little
+ * history (< MIN_FEEDINGS_FOR_DYNAMIC) we fall back to `fallbackHours` (the
+ * user's configured interval, or the global default). The dynamic result is
+ * clamped to a sane range so outliers can't yield absurd reminders.
  */
 export function computeDynamicIntervalHours(feedingCountLast3Days: number, fallbackHours: number): number {
-  if (feedingCountLast3Days <= 0) return fallbackHours;
-  return DYNAMIC_INTERVAL_WINDOW_HOURS / feedingCountLast3Days;
+  if (feedingCountLast3Days < MIN_FEEDINGS_FOR_DYNAMIC) return fallbackHours;
+  const raw = DYNAMIC_INTERVAL_WINDOW_HOURS / feedingCountLast3Days;
+  return Math.min(MAX_DYNAMIC_INTERVAL_HOURS, Math.max(MIN_DYNAMIC_INTERVAL_HOURS, raw));
 }
 
 function hashStringToInt(s: string): number {

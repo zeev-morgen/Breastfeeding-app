@@ -28,6 +28,22 @@ function formatClock(when: Date): string {
   return `${pad2(wc.hour)}:${pad2(wc.minute)}`;
 }
 
+/**
+ * "Next feeding" line. If the predicted time has already passed (e.g. a feeding
+ * was logged for the past with a short interval), say "מומלץ עכשיו" instead of
+ * showing a clock time that reads as negative.
+ */
+function formatNextFeeding(guidance: Guidance, withRelative: boolean, now = new Date()): string {
+  const side = SIDE_LABEL[guidance.nextSide];
+  if (guidance.nextFeedingAt.getTime() <= now.getTime()) {
+    return `צד ${side} — מומלץ עכשיו`;
+  }
+  const clock = `בסביבות ${formatClock(guidance.nextFeedingAt)}`;
+  return withRelative
+    ? `צד ${side} ${clock} (${formatRelative(guidance.nextFeedingAt, now)})`
+    : `צד ${side} ${clock}`;
+}
+
 export function formatStatusMessage(latest: FeedingLog | null, guidance: Guidance): string {
   const lines: string[] = [];
   if (latest) {
@@ -37,9 +53,7 @@ export function formatStatusMessage(latest: FeedingLog | null, guidance: Guidanc
   } else {
     lines.push('📋 עדיין לא תועדו הנקות.');
   }
-  lines.push(
-    `➡️ הבאה: צד ${SIDE_LABEL[guidance.nextSide]} בסביבות ${formatClock(guidance.nextFeedingAt)} (${formatRelative(guidance.nextFeedingAt)})`,
-  );
+  lines.push(`➡️ הבאה: ${formatNextFeeding(guidance, true)}`);
   if (guidance.tip) lines.push(`💡 טיפ: ${guidance.tip}`);
   return lines.join('\n');
 }
@@ -47,7 +61,7 @@ export function formatStatusMessage(latest: FeedingLog | null, guidance: Guidanc
 export function formatLoggedConfirmation(log: FeedingLog, guidance: Guidance): string {
   return [
     `✅ נרשם: ${SIDE_LABEL[log.side]} • ${log.durationMin} ד׳ • איכות ${log.qualityScore}/5 • בשעה ${formatClock(log.startTime)}`,
-    `➡️ הבאה: צד ${SIDE_LABEL[guidance.nextSide]} בסביבות ${formatClock(guidance.nextFeedingAt)}`,
+    `➡️ הבאה: ${formatNextFeeding(guidance, false)}`,
     guidance.tip ? `💡 טיפ: ${guidance.tip}` : '',
   ]
     .filter(Boolean)
