@@ -16,6 +16,11 @@ import {
 
 const MIN_LOG_CONFIDENCE = 0.5;
 
+// Defaults used when a WhatsApp report omits duration / quality, mirroring the
+// app's Quick Log defaults so a minimal message like "הנקתי שמאל" still logs.
+const DEFAULT_DURATION_MIN = 15;
+const DEFAULT_QUALITY_SCORE = 4;
+
 function twiml(message: string): string {
   // Build TwiML manually — keeps the dependency surface tiny and avoids a side-effect import.
   const escaped = message
@@ -69,7 +74,7 @@ export const whatsappWebhook: RequestHandler = async (req, res) => {
   const text = (body.Body ?? '').toString();
 
   if (!phone) {
-    sendTwiml(res, 'Could not identify your phone number.');
+    sendTwiml(res, 'לא הצלחנו לזהות את מספר הטלפון שלך.');
     return;
   }
 
@@ -77,7 +82,7 @@ export const whatsappWebhook: RequestHandler = async (req, res) => {
   if (!user) {
     sendTwiml(
       res,
-      '👋 Welcome to LactaSync! Your number is not linked yet. Sign up in the app and link this phone in Settings.',
+      '👋 ברוכה הבאה ל-LactaSync! המספר שלך עדיין לא מקושר. הירשמי באפליקציה וקשרי את הטלפון הזה בהגדרות.',
     );
     return;
   }
@@ -101,20 +106,23 @@ export const whatsappWebhook: RequestHandler = async (req, res) => {
     }
 
     case 'LOG_FEEDING': {
-      // Need at least side + duration to record a usable session.
-      if (parsed.side == null || parsed.durationMin == null || parsed.confidence < MIN_LOG_CONFIDENCE) {
+      // Side is the only thing we truly need; duration & quality fall back to
+      // sensible defaults so a minimal report still records a session.
+      if (parsed.side == null || parsed.confidence < MIN_LOG_CONFIDENCE) {
         sendTwiml(res, LOW_CONFIDENCE_MESSAGE(parsed));
         return;
       }
+      const durationMin = parsed.durationMin ?? DEFAULT_DURATION_MIN;
+      const qualityScore = parsed.qualityScore ?? DEFAULT_QUALITY_SCORE;
       const startTime = new Date();
       const log = await prisma.feedingLog.create({
         data: {
           userId: user.id,
           side: parsed.side,
-          durationMin: parsed.durationMin,
-          qualityScore: parsed.qualityScore ?? 3,
+          durationMin,
+          qualityScore,
           startTime,
-          endTime: new Date(startTime.getTime() + parsed.durationMin * 60_000),
+          endTime: new Date(startTime.getTime() + durationMin * 60_000),
           notes: parsed.notes,
           source: 'WHATSAPP',
           rawMessage: text,
