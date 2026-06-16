@@ -16,6 +16,23 @@ const TIPS_LOW_QUALITY: readonly string[] = [
   'מגע עור-לעור לכמה דקות לפני ההנקה הבאה מרגיע תינוק חסר מנוחה ומעורר את רפלקס שחרור החלב.',
 ];
 
+/**
+ * Window (in hours) over which we count past feedings to personalize the interval.
+ * 72h == the last 3 days.
+ */
+export const DYNAMIC_INTERVAL_WINDOW_HOURS = 72;
+
+/**
+ * Personalized feeding interval: spread the last 3 days' feedings evenly across
+ * the 72h window → 72 / (number of feedings in the window). With no recent
+ * history to learn from we fall back to `fallbackHours` (the user's configured
+ * interval, or the global default).
+ */
+export function computeDynamicIntervalHours(feedingCountLast3Days: number, fallbackHours: number): number {
+  if (feedingCountLast3Days <= 0) return fallbackHours;
+  return DYNAMIC_INTERVAL_WINDOW_HOURS / feedingCountLast3Days;
+}
+
 function hashStringToInt(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;

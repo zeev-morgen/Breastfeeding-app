@@ -4,7 +4,11 @@ import { prisma } from '../lib/prisma';
 import { env } from '../lib/env';
 import { logger } from '../lib/logger';
 import { parseWhatsAppMessage } from '../services/claude.service';
-import { buildGuidance } from '../services/guidance.service';
+import {
+  DYNAMIC_INTERVAL_WINDOW_HOURS,
+  buildGuidance,
+  computeDynamicIntervalHours,
+} from '../services/guidance.service';
 import {
   HELP_MESSAGE,
   LOW_CONFIDENCE_MESSAGE,
@@ -47,6 +51,19 @@ function verifyTwilioSignature(req: Parameters<RequestHandler>[0]): boolean {
     : `${proto}://${host}${req.originalUrl}`;
 
   return twilio.validateRequest(authToken, signature, url, req.body as Record<string, string>);
+}
+
+/**
+ * Personalize the reminder interval from how often the baby actually fed over
+ * the last 3 days (72 / feedings-in-window). Falls back to the user's
+ * configured interval when there's no recent history.
+ */
+async function dynamicIntervalForUser(userId: string, fallbackHours: number): Promise<number> {
+  const since = new Date(Date.now() - DYNAMIC_INTERVAL_WINDOW_HOURS * 60 * 60 * 1000);
+  const count = await prisma.feedingLog.count({
+    where: { userId, startTime: { gte: since } },
+  });
+  return computeDynamicIntervalHours(count, fallbackHours);
 }
 
 function normalizePhone(from: string | undefined): string | null {
@@ -94,7 +111,8 @@ export const whatsappWebhook: RequestHandler = async (req, res) => {
         where: { userId: user.id },
         orderBy: { startTime: 'desc' },
       });
-      sendTwiml(res, formatStatusMessage(latest, buildGuidance(latest, intervalHours)));
+      const interval = await dynamicIntervalForUser(user.id, intervalHours);
+      sendTwiml(res, formatStatusMessage(latest, buildGuidance(latest, interval)));
       return;
     }
 
@@ -118,7 +136,9 @@ export const whatsappWebhook: RequestHandler = async (req, res) => {
           rawMessage: text,
         },
       });
-      sendTwiml(res, formatLoggedConfirmation(log, buildGuidance(log, intervalHours)));
+      // Count includes the feeding we just logged, so the next interval reflects it.
+      const interval = await dynamicIntervalForUser(user.id, intervalHours);
+      sendTwiml(res, formatLoggedConfirmation(log, buildGuidance(log, interval)));
       return;
     }
 
