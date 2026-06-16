@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { FeedingLog } from '@prisma/client';
-import { buildGuidance, predictNextFeedingAt, predictNextSide } from './guidance.service';
+import {
+  buildGuidance,
+  computeDynamicIntervalHours,
+  predictNextFeedingAt,
+  predictNextSide,
+} from './guidance.service';
 
 function fakeLog(overrides: Partial<FeedingLog> = {}): FeedingLog {
   const now = new Date('2025-01-01T08:00:00.000Z');
@@ -38,6 +43,19 @@ describe('predictNextFeedingAt', () => {
   it('adds the configured interval to the last start_time', () => {
     const log = fakeLog({ startTime: new Date('2025-01-01T08:00:00Z') });
     expect(predictNextFeedingAt(log, 3).toISOString()).toBe('2025-01-01T11:00:00.000Z');
+  });
+});
+
+describe('computeDynamicIntervalHours', () => {
+  it('spreads the last 3 days feedings across the 72h window', () => {
+    // 24 feedings over 3 days → roughly every 3 hours.
+    expect(computeDynamicIntervalHours(24, 3)).toBe(3);
+    // 36 feedings → every 2 hours.
+    expect(computeDynamicIntervalHours(36, 3)).toBe(2);
+  });
+  it('falls back to the configured interval when there is no recent history', () => {
+    expect(computeDynamicIntervalHours(0, 3)).toBe(3);
+    expect(computeDynamicIntervalHours(-1, 2.5)).toBe(2.5);
   });
 });
 

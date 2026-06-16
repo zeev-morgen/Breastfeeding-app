@@ -2,14 +2,20 @@ import type { RequestHandler } from 'express';
 import { prisma } from '../lib/prisma';
 import { CreateLogSchema } from '../schemas/log.schema';
 import { buildGuidance } from '../services/guidance.service';
+import { dynamicIntervalForUser } from '../services/interval.service';
 import { env } from '../lib/env';
 
+/**
+ * Personalized interval for the app: dynamic (72 / feedings in last 3 days),
+ * falling back to the user's configured interval when there's no recent history.
+ */
 async function intervalHoursForUser(userId: string): Promise<number> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { feedingIntervalHours: true },
   });
-  return user?.feedingIntervalHours ?? env.FEEDING_INTERVAL_HOURS;
+  const fallback = user?.feedingIntervalHours ?? env.FEEDING_INTERVAL_HOURS;
+  return dynamicIntervalForUser(userId, fallback);
 }
 
 export const createLog: RequestHandler = async (req, res) => {

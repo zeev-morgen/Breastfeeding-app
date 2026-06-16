@@ -5,6 +5,7 @@ import { env } from '../lib/env';
 import { logger } from '../lib/logger';
 import { parseWhatsAppMessage } from '../services/claude.service';
 import { buildGuidance } from '../services/guidance.service';
+import { dynamicIntervalForUser } from '../services/interval.service';
 import {
   HELP_MESSAGE,
   LOW_CONFIDENCE_MESSAGE,
@@ -94,7 +95,8 @@ export const whatsappWebhook: RequestHandler = async (req, res) => {
         where: { userId: user.id },
         orderBy: { startTime: 'desc' },
       });
-      sendTwiml(res, formatStatusMessage(latest, buildGuidance(latest, intervalHours)));
+      const interval = await dynamicIntervalForUser(user.id, intervalHours);
+      sendTwiml(res, formatStatusMessage(latest, buildGuidance(latest, interval)));
       return;
     }
 
@@ -118,7 +120,9 @@ export const whatsappWebhook: RequestHandler = async (req, res) => {
           rawMessage: text,
         },
       });
-      sendTwiml(res, formatLoggedConfirmation(log, buildGuidance(log, intervalHours)));
+      // Count includes the feeding we just logged, so the next interval reflects it.
+      const interval = await dynamicIntervalForUser(user.id, intervalHours);
+      sendTwiml(res, formatLoggedConfirmation(log, buildGuidance(log, interval)));
       return;
     }
 
