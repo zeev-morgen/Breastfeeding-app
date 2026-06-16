@@ -68,7 +68,7 @@ Hot-path indexes:
 - **Dynamic tip**: surfaced only when last `quality_score < 3`, deterministically rotated by log id so retries don't show the same tip twice.
 
 ### Daily WhatsApp summary (`src/jobs/daily-summary.job.ts`)
-- In-process scheduler (no cron dependency) fires every day at `DAILY_SUMMARY_HOUR` (default 22:00) in `DAILY_SUMMARY_TIMEZONE` (default `Asia/Jerusalem`).
+- In-process scheduler (no cron dependency) fires every day at `DAILY_SUMMARY_HOUR` (default 22:00) in `APP_TIMEZONE` (default `Asia/Jerusalem`, shared with all user-facing clocks).
 - Sends each linked user a detailed Hebrew summary of the day's feedings — count, total minutes, average quality, per-side breakdown, a per-feeding list, and the next recommended feeding — proactively over WhatsApp via Twilio.
 - Toggle with `DAILY_SUMMARY_ENABLED`; auto-skips when Twilio outbound isn't configured.
 

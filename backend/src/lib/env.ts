@@ -26,13 +26,15 @@ const EnvSchema = z.object({
 
   FEEDING_INTERVAL_HOURS: z.coerce.number().positive().default(3),
 
+  // IANA timezone used for all user-facing times (WhatsApp clocks, daily summary).
+  APP_TIMEZONE: z.string().default('Asia/Jerusalem'),
+
   // Daily WhatsApp feeding summary.
   DAILY_SUMMARY_ENABLED: z
     .string()
     .default('true')
     .transform((v) => v.toLowerCase() === 'true'),
   DAILY_SUMMARY_HOUR: z.coerce.number().int().min(0).max(23).default(22),
-  DAILY_SUMMARY_TIMEZONE: z.string().default('Asia/Jerusalem'),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

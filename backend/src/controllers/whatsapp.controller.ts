@@ -114,7 +114,9 @@ export const whatsappWebhook: RequestHandler = async (req, res) => {
       }
       const durationMin = parsed.durationMin ?? DEFAULT_DURATION_MIN;
       const qualityScore = parsed.qualityScore ?? DEFAULT_QUALITY_SCORE;
-      const startTime = new Date();
+      // Honor a relative time like "לפני 15 דק"; default to now when unstated.
+      const startedMinutesAgo = parsed.startedMinutesAgo ?? 0;
+      const startTime = new Date(Date.now() - startedMinutesAgo * 60_000);
       const log = await prisma.feedingLog.create({
         data: {
           userId: user.id,

@@ -1,5 +1,7 @@
 import type { FeedingLog } from '@prisma/client';
 import type { Guidance } from './guidance.service';
+import { env } from '../lib/env';
+import { wallClockInTimeZone } from '../lib/timezone';
 
 const SIDE_LABEL: Record<FeedingLog['side'], string> = {
   LEFT: 'שמאל',
@@ -17,8 +19,13 @@ function formatRelative(when: Date, now = new Date()): string {
   return diffMs >= 0 ? `בעוד ${phrase}` : `לפני ${phrase}`;
 }
 
+function pad2(n: number): string {
+  return n.toString().padStart(2, '0');
+}
+
 function formatClock(when: Date): string {
-  return when.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const wc = wallClockInTimeZone(when, env.APP_TIMEZONE);
+  return `${pad2(wc.hour)}:${pad2(wc.minute)}`;
 }
 
 export function formatStatusMessage(latest: FeedingLog | null, guidance: Guidance): string {
@@ -39,7 +46,7 @@ export function formatStatusMessage(latest: FeedingLog | null, guidance: Guidanc
 
 export function formatLoggedConfirmation(log: FeedingLog, guidance: Guidance): string {
   return [
-    `✅ נרשם: ${SIDE_LABEL[log.side]} • ${log.durationMin} ד׳ • איכות ${log.qualityScore}/5`,
+    `✅ נרשם: ${SIDE_LABEL[log.side]} • ${log.durationMin} ד׳ • איכות ${log.qualityScore}/5 • בשעה ${formatClock(log.startTime)}`,
     `➡️ הבאה: צד ${SIDE_LABEL[guidance.nextSide]} בסביבות ${formatClock(guidance.nextFeedingAt)}`,
     guidance.tip ? `💡 טיפ: ${guidance.tip}` : '',
   ]

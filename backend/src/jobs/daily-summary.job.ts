@@ -12,7 +12,7 @@ import { isWhatsAppSenderConfigured, sendWhatsAppMessage } from '../services/wha
  * linked WhatsApp number. Safe to call directly (e.g. from a script).
  */
 export async function runDailySummary(now = new Date()): Promise<{ sent: number; skipped: number }> {
-  const timeZone = env.DAILY_SUMMARY_TIMEZONE;
+  const timeZone = env.APP_TIMEZONE;
   const dayStart = startOfDayInTimeZone(now, timeZone);
 
   const users = await prisma.user.findMany({
@@ -65,7 +65,7 @@ export function startDailySummaryScheduler(): { stop: () => void } | null {
     return null;
   }
 
-  const timeZone = env.DAILY_SUMMARY_TIMEZONE;
+  const timeZone = env.APP_TIMEZONE;
   const targetHour = env.DAILY_SUMMARY_HOUR;
   let lastRunDayKey: string | null = null;
 
