@@ -25,6 +25,14 @@ const EnvSchema = z.object({
   PUBLIC_BASE_URL: z.string().url().optional(),
 
   FEEDING_INTERVAL_HOURS: z.coerce.number().positive().default(3),
+
+  // Daily WhatsApp feeding summary.
+  DAILY_SUMMARY_ENABLED: z
+    .string()
+    .default('true')
+    .transform((v) => v.toLowerCase() === 'true'),
+  DAILY_SUMMARY_HOUR: z.coerce.number().int().min(0).max(23).default(22),
+  DAILY_SUMMARY_TIMEZONE: z.string().default('Asia/Jerusalem'),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

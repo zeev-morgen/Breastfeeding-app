@@ -64,8 +64,13 @@ Hot-path indexes:
 
 ### Guidance logic (`src/services/guidance.service.ts`)
 - **Next side**: alternate from last (`LEFT → RIGHT`, `RIGHT → LEFT`, `BOTH/none → LEFT`).
-- **Next time**: `last.start_time + FEEDING_INTERVAL_HOURS` (default 3h, per-user override on `users.feeding_interval_hours`).
+- **Next time**: `last.start_time + interval`, where the **interval is personalized**: `72 / (feedings in the last 3 days)` (`src/services/interval.service.ts`). With no recent history it falls back to `users.feeding_interval_hours` or `FEEDING_INTERVAL_HOURS` (default 3h). Applied to both the WhatsApp bot and the app.
 - **Dynamic tip**: surfaced only when last `quality_score < 3`, deterministically rotated by log id so retries don't show the same tip twice.
+
+### Daily WhatsApp summary (`src/jobs/daily-summary.job.ts`)
+- In-process scheduler (no cron dependency) fires every day at `DAILY_SUMMARY_HOUR` (default 22:00) in `DAILY_SUMMARY_TIMEZONE` (default `Asia/Jerusalem`).
+- Sends each linked user a detailed Hebrew summary of the day's feedings — count, total minutes, average quality, per-side breakdown, a per-feeding list, and the next recommended feeding — proactively over WhatsApp via Twilio.
+- Toggle with `DAILY_SUMMARY_ENABLED`; auto-skips when Twilio outbound isn't configured.
 
 ### Claude prompt (`src/services/claude.service.ts`)
 Robust system prompt that constrains Claude to a **single JSON object** with six keys (`intent`, `side`, `durationMin`, `qualityScore`, `notes`, `confidence`) — including English and Hebrew examples. The service:

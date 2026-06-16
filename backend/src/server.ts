@@ -2,6 +2,7 @@ import { createApp } from './app';
 import { env } from './lib/env';
 import { logger } from './lib/logger';
 import { prisma } from './lib/prisma';
+import { startDailySummaryScheduler } from './jobs/daily-summary.job';
 
 const app = createApp();
 
@@ -9,8 +10,11 @@ const server = app.listen(env.PORT, () => {
   logger.info(`LactaSync API listening on :${env.PORT} (${env.NODE_ENV})`);
 });
 
+const dailySummary = startDailySummaryScheduler();
+
 async function shutdown(signal: string) {
   logger.info({ signal }, 'Shutting down');
+  dailySummary?.stop();
   server.close(async () => {
     await prisma.$disconnect();
     process.exit(0);
