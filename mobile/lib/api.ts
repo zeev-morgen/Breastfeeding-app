@@ -69,6 +69,17 @@ export const api = {
   getLatest: () => request<{ log: FeedingLog | null; guidance: Guidance }>('/api/logs/latest'),
 
   listLogs: (limit = 20) => request<{ logs: FeedingLog[] }>(`/api/logs?limit=${limit}`),
+
+  updateLog: (id: string, input: Partial<CreateLogPayload>) =>
+    request<{ log: FeedingLog; guidance: Guidance }>(`/api/logs/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+
+  deleteLog: (id: string) =>
+    request<{ ok: true }>(`/api/logs/${id}`, {
+      method: 'DELETE',
+    }),
 };
 
 export { ApiError };

@@ -1,9 +1,12 @@
 import type { RequestHandler } from 'express';
+import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { CreateLogSchema } from '../schemas/log.schema';
+import { CreateLogSchema, UpdateLogSchema } from '../schemas/log.schema';
 import { buildGuidance } from '../services/guidance.service';
 import { dynamicIntervalForUser } from '../services/interval.service';
 import { env } from '../lib/env';
+
+const IdParam = z.string().uuid();
 
 /**
  * Personalized interval for the app: dynamic (72 / feedings in last 3 days),
@@ -53,6 +56,60 @@ export const getLatest: RequestHandler = async (req, res) => {
 
   const intervalHours = await intervalHoursForUser(userId);
   res.json({ log: latest, guidance: buildGuidance(latest, intervalHours) });
+};
+
+export const updateLog: RequestHandler = async (req, res) => {
+  const userId = req.userId!;
+  const id = IdParam.parse(req.params.id);
+  const input = UpdateLogSchema.parse(req.body);
+
+  // Ownership check — only touch the caller's own logs.
+  const existing = await prisma.feedingLog.findFirst({ where: { id, userId } });
+  if (!existing) {
+    res.status(404).json({ error: 'NOT_FOUND', message: 'Feeding log not found' });
+    return;
+  }
+
+  // Recompute endTime when timing/duration changed and the client didn't set it.
+  const startTime = input.startTime ?? existing.startTime;
+  const durationMin = input.durationMin ?? existing.durationMin;
+  const timingChanged = input.startTime !== undefined || input.durationMin !== undefined;
+  const endTime =
+    input.endTime !== undefined
+      ? input.endTime
+      : timingChanged
+        ? durationMin > 0
+          ? new Date(startTime.getTime() + durationMin * 60_000)
+          : null
+        : existing.endTime;
+
+  const log = await prisma.feedingLog.update({
+    where: { id },
+    data: {
+      side: input.side ?? undefined,
+      qualityScore: input.qualityScore ?? undefined,
+      durationMin: input.durationMin ?? undefined,
+      startTime: input.startTime ?? undefined,
+      endTime,
+      notes: input.notes === undefined ? undefined : input.notes,
+    },
+  });
+
+  const intervalHours = await intervalHoursForUser(userId);
+  res.json({ log, guidance: buildGuidance(log, intervalHours) });
+};
+
+export const deleteLog: RequestHandler = async (req, res) => {
+  const userId = req.userId!;
+  const id = IdParam.parse(req.params.id);
+
+  // Scope the delete to the owner so a missing/foreign id yields 404, not 500.
+  const result = await prisma.feedingLog.deleteMany({ where: { id, userId } });
+  if (result.count === 0) {
+    res.status(404).json({ error: 'NOT_FOUND', message: 'Feeding log not found' });
+    return;
+  }
+  res.json({ ok: true });
 };
 
 export const listLogs: RequestHandler = async (req, res) => {
