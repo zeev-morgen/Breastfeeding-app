@@ -6,6 +6,7 @@ import { logger } from '../lib/logger';
 import { parseWhatsAppMessage } from '../services/claude.service';
 import { buildGuidance } from '../services/guidance.service';
 import { dynamicIntervalForUser } from '../services/interval.service';
+import { isWhatsAppSenderConfigured, sendWhatsAppMessage } from '../services/whatsapp-sender.service';
 import {
   HELP_MESSAGE,
   LOW_CONFIDENCE_MESSAGE,
@@ -33,6 +34,10 @@ function twiml(message: string): string {
 function sendTwiml(res: Parameters<RequestHandler>[1], message: string) {
   res.type('text/xml').status(200).send(twiml(message));
 }
+
+// Empty TwiML — acknowledges the webhook without sending an inline reply (we
+// reply out-of-band via the REST API instead).
+const EMPTY_TWIML = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
 
 /**
  * Twilio sends an `X-Twilio-Signature` header. We validate it against the full
@@ -62,29 +67,16 @@ function normalizePhone(from: string | undefined): string | null {
   return m ? m[1]! : null;
 }
 
-export const whatsappWebhook: RequestHandler = async (req, res) => {
-  if (!verifyTwilioSignature(req)) {
-    logger.warn('Rejected WhatsApp webhook: invalid signature');
-    res.status(403).send('Forbidden');
-    return;
-  }
-
-  const body = (req.body ?? {}) as Record<string, string>;
-  const phone = normalizePhone(body.From);
-  const text = (body.Body ?? '').toString();
-
-  if (!phone) {
-    sendTwiml(res, 'לא הצלחנו לזהות את מספר הטלפון שלך.');
-    return;
-  }
+/**
+ * Compute the reply text for an inbound message. Pure of transport concerns so
+ * it can be used both for the inline TwiML path and the async REST path.
+ */
+async function buildReply(phone: string | null, text: string): Promise<string> {
+  if (!phone) return 'לא הצלחנו לזהות את מספר הטלפון שלך.';
 
   const user = await prisma.user.findUnique({ where: { phoneE164: phone } });
   if (!user) {
-    sendTwiml(
-      res,
-      '👋 ברוכה הבאה ל-LactaSync! המספר שלך עדיין לא מקושר. הירשמי באפליקציה וקשרי את הטלפון הזה בהגדרות.',
-    );
-    return;
+    return '👋 ברוכה הבאה ל-LactaSync! המספר שלך עדיין לא מקושר. הירשמי באפליקציה וקשרי את הטלפון הזה בהגדרות.';
   }
 
   const intervalHours = user.feedingIntervalHours ?? env.FEEDING_INTERVAL_HOURS;
@@ -92,8 +84,7 @@ export const whatsappWebhook: RequestHandler = async (req, res) => {
 
   switch (parsed.intent) {
     case 'HELP':
-      sendTwiml(res, HELP_MESSAGE);
-      return;
+      return HELP_MESSAGE;
 
     case 'STATUS': {
       const latest = await prisma.feedingLog.findFirst({
@@ -101,16 +92,14 @@ export const whatsappWebhook: RequestHandler = async (req, res) => {
         orderBy: { startTime: 'desc' },
       });
       const interval = await dynamicIntervalForUser(user.id, intervalHours);
-      sendTwiml(res, formatStatusMessage(latest, buildGuidance(latest, interval)));
-      return;
+      return formatStatusMessage(latest, buildGuidance(latest, interval));
     }
 
     case 'LOG_FEEDING': {
       // Side is the only thing we truly need; duration & quality fall back to
       // sensible defaults so a minimal report still records a session.
       if (parsed.side == null || parsed.confidence < MIN_LOG_CONFIDENCE) {
-        sendTwiml(res, LOW_CONFIDENCE_MESSAGE(parsed));
-        return;
+        return LOW_CONFIDENCE_MESSAGE(parsed);
       }
       const durationMin = parsed.durationMin ?? DEFAULT_DURATION_MIN;
       const qualityScore = parsed.qualityScore ?? DEFAULT_QUALITY_SCORE;
@@ -132,13 +121,37 @@ export const whatsappWebhook: RequestHandler = async (req, res) => {
       });
       // Count includes the feeding we just logged, so the next interval reflects it.
       const interval = await dynamicIntervalForUser(user.id, intervalHours);
-      sendTwiml(res, formatLoggedConfirmation(log, buildGuidance(log, interval)));
-      return;
+      return formatLoggedConfirmation(log, buildGuidance(log, interval));
     }
 
     case 'UNKNOWN':
     default:
-      sendTwiml(res, UNKNOWN_MESSAGE);
-      return;
+      return UNKNOWN_MESSAGE;
   }
+}
+
+export const whatsappWebhook: RequestHandler = async (req, res) => {
+  if (!verifyTwilioSignature(req)) {
+    logger.warn('Rejected WhatsApp webhook: invalid signature');
+    res.status(403).send('Forbidden');
+    return;
+  }
+
+  const body = (req.body ?? {}) as Record<string, string>;
+  const phone = normalizePhone(body.From);
+  const text = (body.Body ?? '').toString();
+
+  // Preferred path: ACK Twilio instantly and reply out-of-band via REST. This
+  // decouples the reply from the (slow) LLM call, so a long parse can never
+  // exceed Twilio's webhook timeout and drop / delay the confirmation.
+  if (isWhatsAppSenderConfigured() && phone) {
+    res.type('text/xml').status(200).send(EMPTY_TWIML);
+    void buildReply(phone, text)
+      .then((reply) => sendWhatsAppMessage(phone, reply))
+      .catch((err) => logger.error({ err, phone }, 'Async WhatsApp handling failed'));
+    return;
+  }
+
+  // Fallback (no outbound credentials, e.g. local dev): reply inline via TwiML.
+  sendTwiml(res, await buildReply(phone, text));
 };
