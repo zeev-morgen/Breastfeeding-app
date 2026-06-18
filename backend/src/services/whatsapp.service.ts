@@ -68,6 +68,21 @@ export function formatLoggedConfirmation(log: FeedingLog, guidance: Guidance): s
     .join('\n');
 }
 
+/** Proactive "time to feed" reminder (daytime). */
+export function formatFeedingReminder(side: FeedingLog['side']): string {
+  return `🍼 הגיע זמן הנקה! צד מומלץ: ${SIDE_LABEL[side]}.`;
+}
+
+/** Night-hours consent prompt: ask before nudging at night. */
+export function formatNightConsent(side: FeedingLog['side'], when: Date): string {
+  return [
+    `🌙 השעה ${formatClock(when)} ונראה שהגיע זמן הנקה (צד מומלץ: ${SIDE_LABEL[side]}).`,
+    'לשלוח לך תזכורת עכשיו? השיבי *כן* או *לא*.',
+  ].join('\n');
+}
+
+export const NIGHT_CONSENT_NO_MESSAGE = 'בסדר, לא אזכיר כרגע. לילה טוב 🤍';
+
 export const HELP_MESSAGE = [
   '👶 *LactaSync* — לתיעוד הנקה פשוט שלחי הודעה:',
   '• "20 דקות ימין, יניקה מצוינת"',

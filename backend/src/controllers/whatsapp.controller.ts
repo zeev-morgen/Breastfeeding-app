@@ -8,9 +8,16 @@ import { buildGuidance } from '../services/guidance.service';
 import { dynamicIntervalForUser } from '../services/interval.service';
 import { isWhatsAppSenderConfigured, sendWhatsAppMessage } from '../services/whatsapp-sender.service';
 import {
+  classifyYesNo,
+  clearPendingNightConsent,
+  peekPendingNightConsent,
+} from '../services/feeding-reminder.service';
+import {
   HELP_MESSAGE,
   LOW_CONFIDENCE_MESSAGE,
+  NIGHT_CONSENT_NO_MESSAGE,
   UNKNOWN_MESSAGE,
+  formatFeedingReminder,
   formatLoggedConfirmation,
   formatStatusMessage,
 } from '../services/whatsapp.service';
@@ -77,6 +84,22 @@ async function buildReply(phone: string | null, text: string): Promise<string> {
   const user = await prisma.user.findUnique({ where: { phoneE164: phone } });
   if (!user) {
     return '👋 ברוכה הבאה ל-LactaSync! המספר שלך עדיין לא מקושר. הירשמי באפליקציה וקשרי את הטלפון הזה בהגדרות.';
+  }
+
+  // Answer to a pending night-time reminder consent prompt takes priority and
+  // skips the LLM entirely (fast, deterministic).
+  const pending = peekPendingNightConsent(phone);
+  if (pending) {
+    const answer = classifyYesNo(text);
+    if (answer === 'yes') {
+      clearPendingNightConsent(phone);
+      return formatFeedingReminder(pending.side);
+    }
+    if (answer === 'no') {
+      clearPendingNightConsent(phone);
+      return NIGHT_CONSENT_NO_MESSAGE;
+    }
+    // Unrecognized reply → fall through to normal handling, leave prompt pending.
   }
 
   const intervalHours = user.feedingIntervalHours ?? env.FEEDING_INTERVAL_HOURS;

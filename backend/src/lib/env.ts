@@ -35,6 +35,15 @@ const EnvSchema = z.object({
     .default('true')
     .transform((v) => v.toLowerCase() === 'true'),
   DAILY_SUMMARY_HOUR: z.coerce.number().int().min(0).max(23).default(22),
+
+  // Proactive WhatsApp "time to feed" reminder.
+  FEEDING_REMINDER_ENABLED: z
+    .string()
+    .default('true')
+    .transform((v) => v.toLowerCase() === 'true'),
+  // Night window [start, end): inside it we ASK before sending a reminder.
+  REMINDER_NIGHT_START_HOUR: z.coerce.number().int().min(0).max(23).default(2),
+  REMINDER_NIGHT_END_HOUR: z.coerce.number().int().min(0).max(23).default(9),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

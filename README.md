@@ -72,6 +72,12 @@ Hot-path indexes:
 - Sends each linked user a detailed Hebrew summary of the day's feedings — count, total minutes, average quality, per-side breakdown, a per-feeding list, and the next recommended feeding — proactively over WhatsApp via Twilio.
 - Toggle with `DAILY_SUMMARY_ENABLED`; auto-skips when Twilio outbound isn't configured.
 
+### Proactive feeding reminder (`src/jobs/feeding-reminder.job.ts`)
+- In-process scheduler ticks every minute; when a user's next feeding (dynamic interval) is due, it sends a WhatsApp nudge with the recommended side.
+- One reminder per feeding window (in-memory dedup, no nagging); resets on restart.
+- During the night window `[REMINDER_NIGHT_START_HOUR, REMINDER_NIGHT_END_HOUR)` (default 02:00–09:00) it sends a **yes/no consent prompt** instead — replying `כן` sends the reminder, `לא` skips it (handled LLM-free in the webhook).
+- Toggle with `FEEDING_REMINDER_ENABLED`; auto-skips when Twilio outbound isn't configured.
+
 ### Claude prompt (`src/services/claude.service.ts`)
 Robust system prompt that constrains Claude to a **single JSON object** with six keys (`intent`, `side`, `durationMin`, `qualityScore`, `notes`, `confidence`) — including English and Hebrew examples. The service:
 1. Short-circuits common deterministic commands (`status`, `help`, `סטטוס`, `עזרה`).
